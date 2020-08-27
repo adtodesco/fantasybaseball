@@ -1,0 +1,16 @@
+batting:
+  TB: 1
+  R: 1
+  RBI: 1
+  BB: 1
+  SO: -1
+  SB: 1
+pitching:
+  IP: 3
+  ER: -2
+  H: -1
+  SO: 1
+  BB: -1
+  W: 5
+  L: -5
+  SV: 5
