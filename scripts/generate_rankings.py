@@ -39,7 +39,7 @@ if __name__ == "__main__":
         ProjectionType.THE_BAT,
     ]
     stat_types = [StatType.BATTING, StatType.PITCHING]
-    ros = True
+    ros = False
     projections_dir = PROJECTIONS_DIR
     rankings_dir = RANKINGS_DIR
     leagues_dir = LEAGUES_DIR

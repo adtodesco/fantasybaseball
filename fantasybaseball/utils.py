@@ -11,6 +11,17 @@ _METADATA_EXT = ".yaml"
 
 
 def read_projections(projections_dir, projection_types=None, stat_types=None, ros=None):
+    """
+
+    Args:
+        projections_dir:
+        projection_types:
+        stat_types:
+        ros:
+
+    Returns:
+
+    """
     projections = list()
     for file in os.listdir(projections_dir):
         if os.path.isfile(os.path.join(projections_dir, file)) and _METADATA_SUFFIX + _METADATA_EXT in file:
@@ -33,6 +44,18 @@ def read_projections(projections_dir, projection_types=None, stat_types=None, ro
 
 
 def write_projections(projections, projections_dir, projection_type, stat_type, ros=False):
+    """
+
+    Args:
+        projections:
+        projections_dir:
+        projection_type:
+        stat_type:
+        ros:
+
+    Returns:
+
+    """
     ros_string = "-ROS" if ros else ""
     basename = "{}{}-{}".format(projection_type.name, ros_string, stat_type.name)
     metadata_file = os.path.join(projections_dir, basename + _METADATA_SUFFIX + _METADATA_EXT)

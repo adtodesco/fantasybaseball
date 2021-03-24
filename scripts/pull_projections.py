@@ -1,43 +1,36 @@
 from fantasybaseball import fangraphs, utils
-from fantasybaseball.glossary import *
+from fantasybaseball.glossary import League, Position, ProjectionType, StatType, Team
 import pandas as pd
 import progressbar
 import ratelimiter
 
 MAX_REQUESTS_PER_SECOND = 1.0
 PROJECTIONS_DIR = "../projections"
-
+REST_OF_SEASON = False
 
 if __name__ == "__main__":
-    projections = {StatType.BATTING.value: dict(), StatType.PITCHING.value: dict()}
+    projections = {StatType.BATTING: dict(), StatType.PITCHING: dict()}
     jobs = list()
     for projection_type in ProjectionType:
-        projections[StatType.BATTING.value][projection_type.value] = list()
-        projections[StatType.PITCHING.value][projection_type.value] = list()
-        for position in Position:
-            if position == Position.ALL:
-                continue
-            for league in League:
-                if league == League.ALL:
-                    continue
-                jobs.append(
-                    {
-                        "projection_type": projection_type.value,
-                        "stat_type": StatType.BATTING.value,
-                        "league": league.value,
-                        "position": position.value,
-                        "ros": True,
-                    }
-                )
+        projections[StatType.BATTING][projection_type] = list()
+        projections[StatType.PITCHING][projection_type] = list()
         for team in Team:
             if team == Team.ALL:
                 continue
             jobs.append(
                 {
-                    "projection_type": projection_type.value,
-                    "stat_type": StatType.PITCHING.value,
-                    "team": team.value,
-                    "ros": True,
+                    "projection_type": projection_type,
+                    "stat_type": StatType.BATTING,
+                    "team": team,
+                    "ros": REST_OF_SEASON,
+                }
+            )
+            jobs.append(
+                {
+                    "projection_type": projection_type,
+                    "stat_type": StatType.PITCHING,
+                    "team": team,
+                    "ros": REST_OF_SEASON,
                 }
             )
 
@@ -53,9 +46,11 @@ if __name__ == "__main__":
     for stat_type in StatType:
         for projection_type in ProjectionType:
             utils.write_projections(
-                projections=pd.concat(projections[stat_type.value][projection_type.value]).drop_duplicates(),
+                projections=pd.concat(
+                    projections[stat_type][projection_type]
+                ).drop_duplicates(),
                 projections_dir=PROJECTIONS_DIR,
                 projection_type=projection_type,
                 stat_type=stat_type,
-                ros=True,
+                ros=REST_OF_SEASON,
             )
