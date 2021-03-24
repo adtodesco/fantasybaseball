@@ -8,6 +8,6 @@ push this as-is and see if anyone else is able to make use of the package for th
 drafts.  Importantly, this project also consists of the scripts `pull_projections.py`
 and `generate_rankings.py` that allow you to pull down the latest projections
 from Fangraphs and - based on your points-league scoring system - calculate projected 
-fantasy points.  All you need to do is create a league .yaml file in the `leages` folder
-with your league's scoring system, update `generate_rankings.py`, and you'll have custom
-Fangraphs rankings!
+fantasy points.  All you need to do is create a league yaml file in the `leagues` folder
+with your league's scoring system, update `generate_rankings.py` to read your league's 
+scoring system, run the scripts and you'll have your own custom Fangraphs rankings!
