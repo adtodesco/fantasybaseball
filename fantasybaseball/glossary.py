@@ -6,6 +6,7 @@ class ProjectionType(Enum):
     STEAMER = "steamer"
     DEPTH_CHARTS = "fangraphsdc"
     THE_BAT = "thebat"
+    THE_BAT_X = "thebatx"
 
 
 class StatType(Enum):

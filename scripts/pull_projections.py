@@ -1,5 +1,5 @@
 from fantasybaseball import fangraphs, utils
-from fantasybaseball.glossary import League, Position, ProjectionType, StatType, Team
+from fantasybaseball.glossary import ProjectionType, StatType, Team
 import pandas as pd
 import progressbar
 import ratelimiter
