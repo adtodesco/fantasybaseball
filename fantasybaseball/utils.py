@@ -3,7 +3,8 @@ import pandas as pd
 import os
 import yaml
 
-from .glossary import ProjectionType, StatType
+from .exceptions import FileDoesNotExist
+from .model import ProjectionType, StatType
 
 _PROJECTIONS_EXT = ".csv"
 _METADATA_SUFFIX = "-metadata"
@@ -38,7 +39,7 @@ def read_projections(projections_dir, projection_types=None, stat_types=None, ro
             if os.path.isfile(projections_file):
                 projections.append((metadata, pd.read_csv(projections_file)))
             else:
-                raise ValueError("No projection file found for metadata file '{}'.".format(file))
+                raise FileDoesNotExist(f"No projection file found for metadata file '{file}'.")
 
     return projections
 
@@ -57,7 +58,7 @@ def write_projections(projections, projections_dir, projection_type, stat_type, 
 
     """
     ros_string = "-ROS" if ros else ""
-    basename = "{}{}-{}".format(projection_type.name, ros_string, stat_type.name)
+    basename = f"{projection_type.name}{ros_string}-{stat_type.name}"
     metadata_file = os.path.join(projections_dir, basename + _METADATA_SUFFIX + _METADATA_EXT)
     projections_file = os.path.join(projections_dir, basename + _PROJECTIONS_EXT)
     metadata = {

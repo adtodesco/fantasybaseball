@@ -3,9 +3,9 @@ import pandas as pd
 import requests
 
 from .exceptions import InvalidRequest
-from .glossary import League, Position, ProjectionType, StatType, Team
+from .model import League, Position, ProjectionType, StatType, Team
 
-_PROJECTIONS_URL = "https://www.fangraphs.com/projections.aspx?pos={}&stats={}&type={}&team={}&lg={}&sort={},d"
+_PROJECTIONS_URL = "https://www.fangraphs.com/projections.aspx"
 _PROJECTIONS_TABLE_ID = "ProjectionBoard1_dg1_ctl00"
 _NO_RECORD_MESSAGE = "No records to display."
 _SORT_COLUMN = {
@@ -15,6 +15,7 @@ _SORT_COLUMN = {
         ProjectionType.STEAMER: 5,
         ProjectionType.DEPTH_CHARTS: 5,
         ProjectionType.THE_BAT: 5,
+        ProjectionType.THE_BAT_X: 5,
     },
     # IPs column indices
     StatType.PITCHING: {
@@ -61,31 +62,29 @@ def get_projections(
         HTTPError: If one occurred.
     """
     if league != League.ALL and team != Team.ALL:
-        raise InvalidRequest(
-            "'team' and 'league' cannot both be set in the same projections request"
-        )
+        raise InvalidRequest("'team' and 'league' cannot both be set in the same projections request")
     if not isinstance(projection_type, ProjectionType):
-        raise InvalidRequest("{} is not a valid ProjectionType.".format(projection_type))
+        raise InvalidRequest(f"{projection_type} is not a valid ProjectionType.")
     if not isinstance(stat_type, StatType):
-        raise InvalidRequest("{} is not a valid StatType.".format(stat_type))
+        raise InvalidRequest(f"{stat_type} is not a valid StatType.")
 
     sort_column = _SORT_COLUMN[stat_type][projection_type]
     projection_type_value = projection_type.value
     if ros:
         if projection_type == ProjectionType.STEAMER:
-            projection_type_value = "{}r".format(projection_type.value)
+            projection_type_value = f"{projection_type.value}r"
         else:
-            projection_type_value = "r{}".format(projection_type.value)
+            projection_type_value = f"r{projection_type.value}"
 
-    url = _PROJECTIONS_URL.format(
-        position.value,
-        stat_type.value,
-        projection_type_value,
-        team.value,
-        league.value,
-        sort_column,
-    )
-    response = requests.get(url)
+    payload = {
+        "pos": position.value,
+        "stats": stat_type.value,
+        "type": projection_type_value,
+        "team": team.value,
+        "lg": league.value,
+        "sort": f"{sort_column},d",
+    }
+    response = requests.get(_PROJECTIONS_URL, params=payload)
     response.raise_for_status()
     return _parse_projections_table(response.text)
 
@@ -99,16 +98,11 @@ def _parse_projections_table(html):
     data = []
     for row_soup in table_soup.find("tbody").find_all("tr"):
         href = row_soup.find("td").find("a").get("href")
-        attributes = {
-            attr.split("=")[0]: attr.split("=")[1]
-            for attr in href.split("?")[1].split("&")
-        }
+        attributes = {attr.split("=")[0]: attr.split("=")[1] for attr in href.split("?")[1].split("&")}
         row = [attributes["playerid"], attributes["position"]]
-        row.extend([r.get_text() for r in row_soup.find_all("td")])
+        row.extend([r.get_text().strip() for r in row_soup.find_all("td")])
         data.append(row)
     if data[0][0] == _NO_RECORD_MESSAGE:
         data = []
     projections = pd.DataFrame(data=data, columns=columns)
-    # Drop "recent news" column from fangraph projections tables
-    projections.drop(columns=[projections.columns[3]], inplace=True)
     return projections

@@ -1,19 +1,34 @@
-from fantasybaseball import scoring
-from fantasybaseball import utils
-from fantasybaseball.glossary import ProjectionType, Stat, StatType
-import numpy as np
 import os
+from datetime import datetime
+
+import numpy as np
 import pandas as pd
 import yaml
 
+from fantasybaseball import scoring
+from fantasybaseball import utils
+from fantasybaseball.model import ProjectionType, Stat, StatType
 
+# LEAGUE_NAME = "beastmode"
+LEAGUE_NAME = "dynasty"
 PROJECTIONS_DIR = "../projections"
 RANKINGS_DIR = "../rankings"
 LEAGUES_DIR = "../leagues"
+DT_FORMAT = "%Y-%m-%d"
 
 CUSTOM_BATTING_STATS = {
-    Stat.TB.value: {Stat.H.value: 1, Stat.Dbl.value: 1, Stat.Trp.value: 2, Stat.HR.value: 3},
-    Stat.Sng.value: {Stat.H.value: 1, Stat.Dbl.value: -1, Stat.Trp.value: -1, Stat.HR.value: -1},
+    Stat.TB.value: {
+        Stat.H.value: 1,
+        Stat.Dbl.value: 1,
+        Stat.Trp.value: 2,
+        Stat.HR.value: 3,
+    },
+    Stat.Sng.value: {
+        Stat.H.value: 1,
+        Stat.Dbl.value: -1,
+        Stat.Trp.value: -1,
+        Stat.HR.value: -1,
+    },
     # Based on league average GDP per AB from 2019 season  (source: https://tinyurl.com/y66bqflr)
     Stat.GDP.value: {Stat.AB.value: 0.02},
 }
@@ -37,49 +52,87 @@ if __name__ == "__main__":
         ProjectionType.STEAMER,
         ProjectionType.DEPTH_CHARTS,
         ProjectionType.THE_BAT,
+        ProjectionType.THE_BAT_X,
     ]
     stat_types = [StatType.BATTING, StatType.PITCHING]
-    ros = False
+    ros = True
     projections_dir = PROJECTIONS_DIR
     rankings_dir = RANKINGS_DIR
     leagues_dir = LEAGUES_DIR
-    league_name = "beastmode"
+    league_name = LEAGUE_NAME
+    date_string = datetime.today().strftime(DT_FORMAT)
 
     with open(os.path.join(leagues_dir, "{}.yaml".format(league_name))) as f:
         league = yaml.safe_load(f)
 
     projections = {StatType.BATTING.value: dict(), StatType.PITCHING.value: dict()}
-    for metadata, projection in utils.read_projections(
-        projections_dir=PROJECTIONS_DIR, projection_types=projection_types, stat_types=stat_types, ros=ros
-    ):
+    projection_files = utils.read_projections(
+        projections_dir=PROJECTIONS_DIR,
+        projection_types=projection_types,
+        stat_types=stat_types,
+        ros=ros,
+    )
+    for metadata, projection in projection_files:
         projection = projection.set_index("Id")
         projection.index = projection.index.map(np.str)
         projections[metadata["stat_type"]][metadata["projection_type"]] = projection
 
     for stat_type in StatType:
-        projections[stat_type.value] = pd.concat(
-            projections[stat_type.value].values(), keys=projections[stat_type.value].keys(), names=["Projection"]
+        # Merge projections for batters or pitchers
+        df = pd.concat(
+            projections[stat_type.value].values(),
+            keys=projections[stat_type.value].keys(),
+            names=["Projection"],
         )
-        stat_cols = list(projections[stat_type.value].select_dtypes(include=[np.number]))
+
+        # Calculate and add points column
+        stat_cols = list(df.select_dtypes(include=[np.number]))
         score_vector = scoring.calculate_score_vector(
             stat_type=stat_type,
             stat_cols=stat_cols,
             league=league,
             custom_stats=CUSTOM_BATTING_STATS if stat_type == StatType.BATTING else CUSTOM_PITCHING_STATS,
         )
-        points = projections[stat_type.value].loc[:, stat_cols].fillna(0.0).dot(score_vector)
+        print("score vector:")
+        print(score_vector)
+        points = np.round(df.loc[:, stat_cols].fillna(0.0).dot(score_vector), 2)
         points.name = "Points"
-        projections[stat_type.value] = projections[stat_type.value].merge(points, left_index=True, right_index=True)
-        decimals = {k: 0 if v == "int64" else 3 for k, v in projections[stat_type.value].dtypes.to_dict().items()}
+        df = df.merge(points, left_index=True, right_index=True)
+
+        ordered_columns = ["Rank", "Position", "Name", "Team", "Points"]
+
+        # Add columns for Pts/G or Pts/IP
+        if stat_type == StatType.BATTING:
+            df["Pts/G"] = np.round(df["Points"] / df["G"], 2)
+            ordered_columns.append("Pts/G")
+        elif stat_type == StatType.PITCHING:
+            df["Pts/IP"] = np.round(df["Points"] / df["IP"], 2)
+            ordered_columns.append("Pts/IP")
+
+        # Round mean projections integers to 0 decimals and floats to 3 decimals
+        decimals = {k: 0 if v == "int64" else 3 for k, v in df.dtypes.to_dict().items()}
         decimals.update({"Points": 0, "HBP": 0, "SV": 0, "HLD": 0, "IP": 0})
-        mean_projections = (
-            projections[stat_type.value]
-            .groupby(by=["Id", "Name", "Position", "Team"])
-            .mean(numeric_only=True)
-            .round(decimals)
-        )
+
+        # Calculate and add mean projetions
+        mean_projections = df.groupby(by=["Id", "Name", "Position", "Team"]).mean(numeric_only=True).round(decimals)
         mean_projections["Projection"] = "mean"
         mean_projections = mean_projections.reset_index().set_index(["Projection", "Id"])
-        projections[stat_type.value] = projections[stat_type.value].append(mean_projections)
-        projections[stat_type.value].sort_values(["Projection", "Points"], ascending=[True, False], inplace=True)
-        projections[stat_type.value].to_csv(os.path.join(RANKINGS_DIR, "{}-RANKINGS.csv".format(stat_type.name)))
+        df = df.append(mean_projections)
+
+        # Sort rows by projections then points (descending)
+        df.sort_values(["Projection", "Points"], ascending=[True, False], inplace=True)
+
+        # Add rank from 1 to N per projection type
+        df["Rank"] = df.groupby("Projection")["Points"].rank(ascending=False).astype(int)
+
+        # Order columns for easy reading
+        for i, ordered_column in enumerate(ordered_columns):
+            df.insert(i, ordered_column, df.pop(ordered_column))
+
+        # Write rankings out to csv file
+        rankings_file = os.path.join(
+            RANKINGS_DIR,
+            f"{stat_type.name}-RANKINGS-{league_name}-{date_string}.csv",
+        )
+        df.to_csv(rankings_file)
+        print(f"Wrote rankings to {rankings_file}")

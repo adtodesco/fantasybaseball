@@ -95,5 +95,6 @@ class Stat(Enum):
     CG = "CG"
     SHO = "SHO"
     SV = "SV"
+    HLD = "HLD"
     BS = "BS"
     PG = "PG"
