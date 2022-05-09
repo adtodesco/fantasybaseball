@@ -1,0 +1,22 @@
+BATTING:
+  1B: 1
+  2B: 2
+  3B: 3
+  HR: 4
+  R: 1
+  RBI: 1
+  BB: 1
+  SO: -0.5
+  SB: 2
+  CS: -1
+  HBP: 1
+PITCHING:
+  IP: 1
+  ER: -1
+  SO: 1
+  W: 5
+  L: -5
+  QS: 5
+  SV: 7
+  BS: -3
+  HLD: 3
