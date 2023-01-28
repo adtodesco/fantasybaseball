@@ -15,23 +15,29 @@ class StatType(Enum):
 
 
 class Position(Enum):
-    ALL = "all"
-    C = "c"
-    FiB = "1b"
-    SeB = "2b"
-    ThB = "3b"
-    SS = "ss"
-    LF = "lf"
-    CF = "cf"
-    RF = "rf"
-    OF = "of"
-    DH = "dh"
+    ALL = "ALL"
+    C = "C"
+    FiB = "1B"
+    SeB = "2B"
+    ThB = "3B"
+    SS = "SS"
+    MI = "MI"
+    CI = "CI"
+    LF = "LF"
+    CF = "CF"
+    RF = "RF"
+    OF = "OF"
+    DH = "DH"
+    P = "P"
+    SP = "SP"
+    RP = "RP"
+    UTIL = "UTIL"
 
 
 class League(Enum):
-    ALL = "all"
-    AL = "al"
-    NL = "nl"
+    ALL = "ALL"
+    AL = "AL"
+    NL = "NL"
 
 
 class Team(Enum):

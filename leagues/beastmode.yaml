@@ -1,30 +1,31 @@
-BATTING:
-  TB: 1
-  1B: 1
-  2B: 2
-  3B: 3
-  HR: 4
-  R: 1
-  RBI: 1
-  BB: 1
-  SO: -1
-  SB: 2
-  CS: -1
-  GDP: -1
-  HBP: 1
-  CYC: 5
-PITCHING:
-  IP: 3
-  ER: -1
-  H: -1
-  SO: 1
-  BB: -1
-  HB: -1
-  W: 5
-  L: -5
-  QS: 5
-  CG: 5
-  SHO: 5
-  SV: 7
-  BS: -3
-  PG: 15
+scoring:
+  bat:
+    TB: 1
+    1B: 1
+    2B: 2
+    3B: 3
+    HR: 4
+    R: 1
+    RBI: 1
+    BB: 1
+    SO: -1
+    SB: 2
+    CS: -1
+    GDP: -1
+    HBP: 1
+    CYC: 5
+  pit:
+    IP: 3
+    ER: -1
+    H: -1
+    SO: 1
+    BB: -1
+    HB: -1
+    W: 5
+    L: -5
+    QS: 5
+    CG: 5
+    SHO: 5
+    SV: 7
+    BS: -3
+    PG: 15
