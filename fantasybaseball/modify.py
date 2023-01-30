@@ -2,6 +2,7 @@ import copy
 import functools
 import math
 
+import numpy as np
 import pandas as pd
 
 from .model import Position, StatType
@@ -132,6 +133,45 @@ def add_points_above_replacement(projections, stat_type, league_roster):
     projections["PAR"] = points_above_replacement
 
     return projections
+
+
+def _calculate_auction_value(par_value, minimum_salary, projection):
+    if projection["ProjectionType"] in par_value:
+        return projection["PAR"] * par_value[projection["ProjectionType"]] + minimum_salary
+
+    return np.nan
+
+
+def add_auction_values(bat_projections, pit_projections, league_roster, league_salary):
+    teams = league_roster["teams"]
+    roster_spots = sum(league_roster["positions"].values())
+    salary_cap = league_salary["cap"]
+    minimum_salary = league_salary["minimum"]
+    total_auction_value = teams * salary_cap - teams * roster_spots * minimum_salary
+
+    total_par = dict()
+    bat_projection_types = bat_projections["ProjectionType"].unique()
+    pit_projection_types = pit_projections["ProjectionType"].unique()
+    projection_types = set(bat_projection_types).intersection(set(pit_projection_types))
+    for projection_type in projection_types:
+        bat_par = bat_projections.loc[
+            (bat_projections["ProjectionType"] == projection_type) & (bat_projections["PAR"] > 0.0)
+        ]["PAR"].sum()
+        pit_par = pit_projections.loc[
+            (pit_projections["ProjectionType"] == projection_type) & (pit_projections["PAR"] > 0.0)
+        ]["PAR"].sum()
+        total_par[projection_type] = bat_par + pit_par
+
+    par_value = {p: total_auction_value / t for p, t in total_par.items()}
+    calculate_auction_value = functools.partial(_calculate_auction_value, par_value, minimum_salary)
+
+    bat_auction_values = bat_projections.apply(calculate_auction_value, axis=1)
+    bat_projections["AuctionValue"] = bat_auction_values
+
+    pit_auction_values = pit_projections.apply(calculate_auction_value, axis=1)
+    pit_projections["AuctionValue"] = pit_auction_values
+
+    return bat_projections, pit_projections
 
 
 def order_and_rank_rows(projections, order_by, asc=True):

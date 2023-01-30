@@ -35,4 +35,8 @@ roster:
     OF: 5
     UTIL: 1
     P: 9
-    bench: 15
+    bench: 13
+
+salary:
+  cap: 1040
+  minimum: 10

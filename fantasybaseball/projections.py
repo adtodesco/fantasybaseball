@@ -3,6 +3,7 @@ from datetime import datetime
 
 from .model import StatType
 from .modify import (
+    add_auction_values,
     add_mean_projections,
     add_points,
     add_points_above_replacement,
@@ -11,6 +12,34 @@ from .modify import (
 )
 
 logger = logging.getLogger(__name__)
+
+BAT_START_COLUMNS = [
+    "ProjectionType",
+    "Rank",
+    "Position",
+    "Name",
+    "PlayerId",
+    "League",
+    "Team",
+    "ShortName",
+    "Points",
+    "Pts/G",
+    "PAR",
+    "AuctionValue",
+]
+PIT_START_COLUMNS = [
+    "ProjectionType",
+    "Rank",
+    "Name",
+    "PlayerId",
+    "League",
+    "Team",
+    "ShortName",
+    "Points",
+    "Pts/IP",
+    "PAR",
+    "AuctionValue",
+]
 
 
 def augment_projections(bat_projections, pit_projections, league=None):
@@ -28,26 +57,13 @@ def augment_projections(bat_projections, pit_projections, league=None):
                 bat_projections = add_points_above_replacement(bat_projections, StatType.BATTING, league["roster"])
                 pit_projections = add_points_above_replacement(pit_projections, StatType.PITCHING, league["roster"])
 
-    bat_projections = order_columns(
-        bat_projections,
-        [
-            "ProjectionType",
-            "Rank",
-            "Position",
-            "Name",
-            "PlayerId",
-            "League",
-            "Team",
-            "ShortName",
-            "Points",
-            "PAR",
-            "Pts/G",
-        ],
-    )
-    pit_projections = order_columns(
-        pit_projections,
-        ["ProjectionType", "Rank", "Name", "PlayerId", "League", "Team", "ShortName", "Points", "PAR", "Pts/IP"],
-    )
+                if "salary" in league:
+                    bat_projections, pit_projections = add_auction_values(
+                        bat_projections, pit_projections, league["roster"], league["salary"]
+                    )
+
+    bat_projections = order_columns(bat_projections, BAT_START_COLUMNS)
+    pit_projections = order_columns(pit_projections, PIT_START_COLUMNS)
     # TODO: Format stats
 
     return bat_projections, pit_projections
