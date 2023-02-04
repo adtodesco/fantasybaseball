@@ -69,7 +69,9 @@ def augment_projections(bat_projections, pit_projections, league=None):
     return bat_projections, pit_projections
 
 
-def write_projections_file(projections, stat_type, output_dir):
+def write_projections_file(projections, stat_type, output_dir, league_name=None):
     current_time_string = datetime.utcnow().strftime("%Y-%m-%d")
     filename = f"{stat_type.value}_{current_time_string}.csv"
+    if league_name:
+        filename = f"{league_name}_{filename}"
     projections.to_csv(output_dir / filename, index=False)

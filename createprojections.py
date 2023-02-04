@@ -78,8 +78,9 @@ def main():
 
     bat_projections, pit_projections = augment_projections(bat_projections, pit_projections, league)
 
-    write_projections_file(bat_projections, StatType.BATTING, output_dir)
-    write_projections_file(pit_projections, StatType.PITCHING, output_dir)
+    league_name = league["name"] if league and "name" in league else None
+    write_projections_file(bat_projections, StatType.BATTING, output_dir, league_name)
+    write_projections_file(pit_projections, StatType.PITCHING, output_dir, league_name)
 
 
 if __name__ == "__main__":

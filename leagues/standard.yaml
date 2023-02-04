@@ -1,3 +1,4 @@
+name: standard
 scoring:
   batting:
     TB: 1
