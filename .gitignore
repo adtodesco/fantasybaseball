@@ -1,2 +1,5 @@
 # Projections files
 projections/*.csv
+
+# Export files
+exports/*.csv

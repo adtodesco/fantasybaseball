@@ -16,8 +16,10 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--projection-types", nargs="+", default=[p.value for p in ProjectionType])
     parser.add_argument("-s", "--stat-types", nargs="+", default=[s.value for s in StatType])
-    parser.add_argument("-r", "--rest-of-season", default=False)
+    parser.add_argument("-r", "--rest-of-season", action="store_true")
     parser.add_argument("-l", "--league-file", default=None)
+    parser.add_argument("-e", "--league-export", default=None)
+    parser.add_argument("-x", "--exclude-rostered-players-from-value-calc", action="store_true")
     parser.add_argument("-o", "--output-dir", default="projections/")
     return parser.parse_args()
 
@@ -68,19 +70,24 @@ def main():
     stat_types = [StatType(st) for st in args.stat_types]
     projection_types = [ProjectionType(pt) for pt in args.projection_types]
     output_dir = pathlib.Path(args.output_dir).resolve()
-    league = None
+    league, league_export = None, None
     if args.league_file:
         with open(pathlib.Path(args.league_file).resolve()) as f:
             league = yaml.safe_load(f)
+    if args.league_export:
+        league_export = pd.read_csv(args.league_export)
 
     jobs = create_jobs(stat_types, projection_types)
     bat_projections, pit_projections = run_jobs(jobs)
 
-    bat_projections, pit_projections = augment_projections(bat_projections, pit_projections, league)
+    bat_projections, pit_projections = augment_projections(
+        bat_projections, pit_projections, league, league_export, args.exclude_rostered_players_from_value_calc
+    )
 
     league_name = league["name"] if league and "name" in league else None
-    write_projections_file(bat_projections, StatType.BATTING, output_dir, league_name)
-    write_projections_file(pit_projections, StatType.PITCHING, output_dir, league_name)
+    custom = "X" if args.exclude_rostered_players_from_value_calc else None
+    write_projections_file(bat_projections, StatType.BATTING, output_dir, league_name, custom)
+    write_projections_file(pit_projections, StatType.PITCHING, output_dir, league_name, custom)
 
 
 if __name__ == "__main__":

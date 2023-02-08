@@ -59,6 +59,8 @@ FLEX_POSITIONS = {
 def _calculate_replacement_level_ranks(league_roster):
     league_roster = copy.deepcopy(league_roster)
     team_count = league_roster["teams"]
+    if not isinstance(team_count, int):
+        team_count = len(team_count)
     positions = league_roster["positions"]
     bench_count = positions.pop("bench", None)
     positions = {Position(p): c for p, c in league_roster["positions"].items()}
@@ -66,7 +68,7 @@ def _calculate_replacement_level_ranks(league_roster):
 
     if bench_count:
         for position in positions.keys():
-            bench_spots = (positions[position] / starter_count) * bench_count
+            bench_spots = positions[position] / starter_count * bench_count
             positions[position] += bench_spots
 
     for flex_position, eligible_positions in FLEX_POSITIONS.items():
@@ -142,12 +144,27 @@ def _calculate_auction_value(par_value, minimum_salary, projection):
     return np.nan
 
 
-def add_auction_values(bat_projections, pit_projections, league_roster, league_salary):
-    teams = league_roster["teams"]
+def add_auction_values(
+    bat_projections,
+    pit_projections,
+    league_roster,
+    league_salary,
+    rostered_players=None,
+    rostered_players_majors_perc=0.7,
+):
+    if rostered_players is None:
+        rostered_players_total_salary = 0.0
+        rostered_players_ids = list()
+    else:
+        rostered_players_total_salary = rostered_players["Salary"].sum()
+        rostered_players_ids = rostered_players["FangraphsPlayerId"]
+    team_count = league_roster["teams"]
     roster_spots = sum(league_roster["positions"].values())
     salary_cap = league_salary["cap"]
     minimum_salary = league_salary["minimum"]
-    total_auction_value = teams * salary_cap - teams * roster_spots * minimum_salary
+    total_auction_value = (team_count * salary_cap - rostered_players_total_salary) - (
+        team_count * roster_spots * minimum_salary - len(rostered_players_ids) * rostered_players_majors_perc
+    )
 
     total_par = dict()
     bat_projection_types = bat_projections["ProjectionType"].unique()
@@ -155,10 +172,14 @@ def add_auction_values(bat_projections, pit_projections, league_roster, league_s
     projection_types = set(bat_projection_types).intersection(set(pit_projection_types))
     for projection_type in projection_types:
         bat_par = bat_projections.loc[
-            (bat_projections["ProjectionType"] == projection_type) & (bat_projections["PAR"] > 0.0)
+            (bat_projections["ProjectionType"] == projection_type)
+            & (bat_projections["PAR"] > 0.0)
+            & (~bat_projections["PlayerId"].isin(rostered_players_ids))
         ]["PAR"].sum()
         pit_par = pit_projections.loc[
-            (pit_projections["ProjectionType"] == projection_type) & (pit_projections["PAR"] > 0.0)
+            (pit_projections["ProjectionType"] == projection_type)
+            & (pit_projections["PAR"] > 0.0)
+            & (~pit_projections["PlayerId"].isin(rostered_players_ids))
         ]["PAR"].sum()
         total_par[projection_type] = bat_par + pit_par
 
@@ -195,5 +216,33 @@ def order_columns(projections, columns, front=True):
             projections.insert(insert_at, col.name, col)
         except KeyError:
             pass
+
+    return projections
+
+
+def _replace_position(league_export, projection):
+    position = projection["Position"]
+    league_player = league_export[league_export["FangraphsPlayerId"] == projection["PlayerId"]]
+    if not league_player.empty:
+        position = league_player.iloc[0]["Position"]
+        position = position.replace(",", "/")
+
+    return position
+
+
+def replace_positions(projections, league_export):
+    replace_position = functools.partial(_replace_position, league_export)
+    replaced_positions = projections.apply(replace_position, axis=1)
+    projections["Position"] = replaced_positions
+    return projections
+
+
+def add_league_info(projections, league_export):
+    projections = projections.merge(
+        league_export[["Status", "Salary", "Contract", "FangraphsPlayerId"]],
+        left_on="PlayerId",
+        right_on="FangraphsPlayerId",
+    )
+    del projections["FangraphsPlayerId"]
 
     return projections
