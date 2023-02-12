@@ -8,6 +8,7 @@ from .modify import (
     add_auction_values,
     add_league_info,
     add_mean_projections,
+    add_pitcher_position,
     add_points,
     add_points_above_replacement,
     order_and_rank_rows,
@@ -38,6 +39,7 @@ BAT_START_COLUMNS = [
 PIT_START_COLUMNS = [
     "ProjectionType",
     "Rank",
+    "Position",
     "Name",
     "PlayerId",
     "League",
@@ -81,8 +83,9 @@ def augment_projections(
             pit_projections = add_points(pit_projections, StatType.PITCHING, league["scoring"], use_stat_proxies=True)
 
             if "roster" in league:
-                bat_projections = add_points_above_replacement(bat_projections, StatType.BATTING, league["roster"])
-                pit_projections = add_points_above_replacement(pit_projections, StatType.PITCHING, league["roster"])
+                bat_projections = add_points_above_replacement(bat_projections, league["roster"])
+                pit_projections = add_pitcher_position(pit_projections, league["roster"])
+                pit_projections = add_points_above_replacement(pit_projections, league["roster"])
 
                 if "salary" in league:
                     bat_projections, pit_projections = add_auction_values(

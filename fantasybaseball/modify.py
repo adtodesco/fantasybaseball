@@ -49,6 +49,16 @@ def add_points(projections, stat_type, league_scoring, use_stat_proxies=False):
     return projections
 
 
+def add_pitcher_position(projections, league_roster):
+    projections = projections.copy()
+    if "SP" in league_roster["positions"] or "RP" in league_roster["positions"]:
+        projections["Position"] = ["SP" if gs > 0.0 else "RP" for gs in projections["GS"]]
+    else:
+        projections["Position"] = "P"
+
+    return projections
+
+
 FLEX_POSITIONS = {
     Position.CI: [Position.FiB, Position.ThB],
     Position.MI: [Position.SeB, Position.SS],
@@ -81,29 +91,25 @@ def _calculate_replacement_level_ranks(league_roster):
     return {p: c * team_count for p, c in positions.items()}
 
 
-def _calculate_replacement_level_points(projections, stat_type, replacement_level_ranks):
+def _calculate_replacement_level_points(projections, replacement_level_ranks):
     replacement_level_points = dict()
     for projection_type in projections["ProjectionType"].unique():
         replacement_level_points[projection_type] = dict()
         for position, rank in replacement_level_ranks.items():
-            if stat_type == StatType.BATTING:
-                position_projections = projections.loc[
-                    (projections["ProjectionType"] == projection_type)
-                    & projections["Position"].str.contains(position.value)
-                ]
-            else:
-                position_projections = projections.loc[projections["ProjectionType"] == projection_type].nlargest(
-                    math.ceil(rank), "Points"
-                )
-            points = position_projections.nlargest(math.ceil(rank), "Points").iloc[-1]["Points"]
-            replacement_level_points[projection_type][position.value] = points
+            position_projections = projections.loc[
+                (projections["ProjectionType"] == projection_type)
+                & projections["Position"].str.contains(position.value)
+            ]
+            if not position_projections.empty:
+                points = position_projections.nlargest(math.ceil(rank), "Points").iloc[-1]["Points"]
+                replacement_level_points[projection_type][position.value] = points
 
     return replacement_level_points
 
 
 def _calculate_points_above_replacement(replacement_level_points, projection):
     projection_replacement_level_points = replacement_level_points[projection["ProjectionType"]]
-    positions = projection["Position"].split("/") if "Position" in projection else [Position.P.value]
+    positions = projection["Position"].split("/")
     replacement_position = None
     for position in positions:
         if position in projection_replacement_level_points:
@@ -120,14 +126,9 @@ def _calculate_points_above_replacement(replacement_level_points, projection):
     return projection["Points"] - projection_replacement_level_points[replacement_position]
 
 
-def add_points_above_replacement(projections, stat_type, league_roster):
+def add_points_above_replacement(projections, league_roster):
     replacement_level_ranks = _calculate_replacement_level_ranks(league_roster)
-    if stat_type == StatType.BATTING:
-        replacement_level_ranks.pop(Position.P)
-    else:
-        replacement_level_ranks = {Position.P: replacement_level_ranks[Position.P]}
-
-    replacement_level_points = _calculate_replacement_level_points(projections, stat_type, replacement_level_ranks)
+    replacement_level_points = _calculate_replacement_level_points(projections, replacement_level_ranks)
     calculate_points_above_replacement = functools.partial(
         _calculate_points_above_replacement, replacement_level_points
     )
