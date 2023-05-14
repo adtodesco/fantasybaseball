@@ -19,7 +19,6 @@ def get_args():
     parser.add_argument("-r", "--rest-of-season", action="store_true")
     parser.add_argument("-l", "--league-file", default=None)
     parser.add_argument("-e", "--league-export", default=None)
-    parser.add_argument("-x", "--exclude-rostered-players-from-value-calc", action="store_true")
     parser.add_argument("-o", "--output-dir", default="projections/")
     return parser.parse_args()
 
@@ -77,17 +76,16 @@ def main():
     if args.league_export:
         league_export = pd.read_csv(args.league_export)
 
-    jobs = create_jobs(stat_types, projection_types)
+    jobs = create_jobs(stat_types, projection_types, ros=args.rest_of_season)
     bat_projections, pit_projections = run_jobs(jobs)
 
     bat_projections, pit_projections = augment_projections(
-        bat_projections, pit_projections, league, league_export, args.exclude_rostered_players_from_value_calc
+        bat_projections, pit_projections, league, league_export
     )
 
     league_name = league["name"] if league and "name" in league else None
-    custom = "X" if args.exclude_rostered_players_from_value_calc else None
-    write_projections_file(bat_projections, StatType.BATTING, output_dir, league_name, custom)
-    write_projections_file(pit_projections, StatType.PITCHING, output_dir, league_name, custom)
+    write_projections_file(bat_projections, StatType.BATTING, output_dir, league_name)
+    write_projections_file(pit_projections, StatType.PITCHING, output_dir, league_name)
 
 
 if __name__ == "__main__":
