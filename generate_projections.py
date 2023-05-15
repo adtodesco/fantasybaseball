@@ -8,7 +8,7 @@ import requests
 import yaml
 
 from fantasybaseball.fangraphs import pull_projections
-from fantasybaseball.model import ProjectionType, StatType
+from fantasybaseball.model import ProjectionType, StatType, Stat
 from fantasybaseball.projections import augment_projections, write_projections_file
 
 
@@ -61,7 +61,10 @@ def run_jobs(jobs, retries=3):
         bar.update(bar.value + 1)
     bar.finish()
 
-    return pd.concat(bat_projections, ignore_index=True), pd.concat(pit_projections, ignore_index=True)
+    return (
+        pd.concat(bat_projections, ignore_index=True).infer_objects(),
+        pd.concat(pit_projections, ignore_index=True).infer_objects(),
+    )
 
 
 def main():
@@ -79,9 +82,7 @@ def main():
     jobs = create_jobs(stat_types, projection_types, ros=args.rest_of_season)
     bat_projections, pit_projections = run_jobs(jobs)
 
-    bat_projections, pit_projections = augment_projections(
-        bat_projections, pit_projections, league, league_export
-    )
+    bat_projections, pit_projections = augment_projections(bat_projections, pit_projections, league, league_export)
 
     league_name = league["name"] if league and "name" in league else None
     write_projections_file(bat_projections, StatType.BATTING, output_dir, league_name)
