@@ -66,10 +66,10 @@ for _, fantrax_player in fantrax_players.iterrows():
         (fangraphs_players["NormName"] == fantrax_player["NormName"])
         & (fangraphs_players["Team"] == fantrax_player["NormTeam"])
         & (
-            fangraphs_players["Position"].str.contains(fantrax_player["Position1"])
-            | fangraphs_players["Position"].str.contains(fantrax_player["Position2"])
-            | fangraphs_players["Position"].str.contains(fantrax_player["Position3"])
-            | fangraphs_players["Position"].str.contains(fantrax_player["Position4"])
+            fangraphs_players["POS"].str.contains(fantrax_player["Position1"])
+            | fangraphs_players["POS"].str.contains(fantrax_player["Position2"])
+            | fangraphs_players["POS"].str.contains(fantrax_player["Position3"])
+            | fangraphs_players["POS"].str.contains(fantrax_player["Position4"])
         )
     ]
     if fangraphs_candidate_players.shape[0] == 1:
@@ -113,7 +113,7 @@ for _, fantrax_player in fantrax_players.iterrows():
         "FantraxPlayerId": fantrax_player["ID"],
         "FangraphsName": fangraphs_player.get("Name"),
         "FangraphsTeam": fangraphs_player.get("Team"),
-        "FangraphsPosition": fangraphs_player.get("Position"),
+        "FangraphsPosition": fangraphs_player.get("POS"),
         "FangraphsPlayerId": fangraphs_player.get("PlayerId"),
     }
     player_map.append(player_map_row)
