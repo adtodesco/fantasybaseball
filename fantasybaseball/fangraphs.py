@@ -6,7 +6,7 @@ from .model import ProjectionType
 PROJECTIONS_URL = "https://www.fangraphs.com/api/projections"
 
 
-def pull_projections(stat_type, projection_type, ros=False):
+def get_projections(stat_type, projection_type, ros=False):
     projection_type_value = projection_type.value
     if ros:
         if projection_type == ProjectionType.STEAMER:
@@ -25,7 +25,7 @@ def pull_projections(stat_type, projection_type, ros=False):
     if not projections.empty:
         _sanitize_projections(projections, projection_type_value)
 
-    return projections
+    return projections.infer_objects()
 
 
 def _sanitize_projections(projections, projection_type):

@@ -7,8 +7,8 @@ import progressbar
 import requests
 import yaml
 
-from fantasybaseball.fangraphs import pull_projections
-from fantasybaseball.model import ProjectionType, StatType, Stat
+from fantasybaseball.fangraphs import get_projections
+from fantasybaseball.model import ProjectionType, Stat, StatType
 from fantasybaseball.projections import augment_projections, write_projections_file
 
 
@@ -23,7 +23,7 @@ def get_args():
     return parser.parse_args()
 
 
-def create_jobs(stat_types, projection_types, ros=False):
+def create_projection_requests(stat_types, projection_types, ros=False):
     jobs = list()
     for projection_type in projection_types:
         for stat_type in stat_types:
@@ -38,17 +38,17 @@ def create_jobs(stat_types, projection_types, ros=False):
     return jobs
 
 
-def run_jobs(jobs, retries=3):
+def run_projection_requests(projection_requests, retries=3):
     bat_projections = list()
     pit_projections = list()
-    bar = progressbar.ProgressBar(max_value=len(jobs)).start()
-    for job in jobs:
+    bar = progressbar.ProgressBar(max_value=len(projection_requests)).start()
+    for projection_request in projection_requests:
         while True:
             try:
-                projections = pull_projections(**job)
+                projections = get_projections(**projection_request)
                 if projections.empty:
                     break
-                if job["stat_type"] == StatType.BATTING:
+                if projection_request["stat_type"] == StatType.BATTING:
                     bat_projections.append(projections)
                 else:
                     pit_projections.append(projections)
@@ -62,8 +62,8 @@ def run_jobs(jobs, retries=3):
     bar.finish()
 
     return (
-        pd.concat(bat_projections, ignore_index=True).infer_objects(),
-        pd.concat(pit_projections, ignore_index=True).infer_objects(),
+        pd.concat(bat_projections, ignore_index=True),
+        pd.concat(pit_projections, ignore_index=True),
     )
 
 
@@ -79,8 +79,8 @@ def main():
     if args.league_export:
         league_export = pd.read_csv(args.league_export)
 
-    jobs = create_jobs(stat_types, projection_types, ros=args.rest_of_season)
-    bat_projections, pit_projections = run_jobs(jobs)
+    projection_requests = create_projection_requests(stat_types, projection_types, ros=args.rest_of_season)
+    bat_projections, pit_projections = run_projection_requests(projection_requests)
 
     bat_projections, pit_projections = augment_projections(bat_projections, pit_projections, league, league_export)
 
