@@ -1,2 +1,27 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fantasybaseball"
+authors = [{ name = "Anthony Todesco", email = "adtodesco@gmail.com" }]
+description = "A package and command line tool for fantasy baseball science."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+keywords = ["fantasy-sports", "data-analysis", "python"]
+dependencies = ["requests", "pandas", "progressbar2", "pyyaml"]
+dynamic = ["version"]
+
+[project.urls]
+homepage = "https://github.com/adtodesco/fantasybaseball"
+repository = "https://github.com/adtodesco/fantasybaseball"
+
+[project.scripts]
+fbb = "fantasybaseball.cli:main"
+
+[tool.setuptools.packages]
+find = {}
+
 [tool.black]
 line-length = 120

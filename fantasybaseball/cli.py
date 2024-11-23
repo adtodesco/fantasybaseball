@@ -1,6 +1,7 @@
 import argparse
 import pathlib
 import time
+import warnings
 
 import pandas as pd
 import progressbar
@@ -8,7 +9,7 @@ import requests
 import yaml
 
 from fantasybaseball.fangraphs import get_projections
-from fantasybaseball.model import ProjectionType, Stat, StatType
+from fantasybaseball.model import ProjectionType, StatType
 from fantasybaseball.projections import augment_projections, write_projections_file
 
 
@@ -52,6 +53,7 @@ def run_projection_requests(projection_requests, retries=3):
                     bat_projections.append(projections)
                 else:
                     pit_projections.append(projections)
+
                 break
             except requests.exceptions.ConnectionError:
                 if retries:
@@ -61,10 +63,12 @@ def run_projection_requests(projection_requests, retries=3):
         bar.update(bar.value + 1)
     bar.finish()
 
-    return (
-        pd.concat(bat_projections, ignore_index=True),
-        pd.concat(pit_projections, ignore_index=True),
-    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=FutureWarning)
+        return (
+            pd.concat(bat_projections, ignore_index=True),
+            pd.concat(pit_projections, ignore_index=True),
+        )
 
 
 def main():
@@ -87,7 +91,3 @@ def main():
     league_name = league["name"] if league and "name" in league else None
     write_projections_file(bat_projections, StatType.BATTING, output_dir, league_name)
     write_projections_file(pit_projections, StatType.PITCHING, output_dir, league_name)
-
-
-if __name__ == "__main__":
-    main()
