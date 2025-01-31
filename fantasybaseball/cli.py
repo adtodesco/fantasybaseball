@@ -85,9 +85,11 @@ def main():
 
     projection_requests = create_projection_requests(stat_types, projection_types, ros=args.rest_of_season)
     bat_projections, pit_projections = run_projection_requests(projection_requests)
-
     bat_projections, pit_projections = augment_projections(bat_projections, pit_projections, league, league_export)
 
     league_name = league["name"] if league and "name" in league else None
-    write_projections_file(bat_projections, StatType.BATTING, output_dir, league_name)
-    write_projections_file(pit_projections, StatType.PITCHING, output_dir, league_name)
+    bat_file_path = write_projections_file(bat_projections, StatType.BATTING, output_dir, league_name)
+    pit_file_path = write_projections_file(pit_projections, StatType.PITCHING, output_dir, league_name)
+    print("New projection files:")
+    print(bat_file_path)
+    print(pit_file_path)

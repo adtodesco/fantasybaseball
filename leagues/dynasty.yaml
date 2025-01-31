@@ -13,9 +13,10 @@ scoring:
     CS: -1
     HBP: 1
   pit:
-    IP: 1
+    IP: 1.5
     ER: -1
     SO: 1
+    BB: -0.5
     W: 5
     L: -5
     QS: 5
@@ -39,5 +40,5 @@ roster:
     bench: 13
 
 salary:
-  cap: 832
-  minimum: 10
+  cap: 900
+  minimum: 11

@@ -2,11 +2,14 @@ from enum import Enum
 
 
 class ProjectionType(Enum):
-    ZIPS = "zips"
-    STEAMER = "steamer"
+    ATC = "atc"
     DEPTH_CHARTS = "fangraphsdc"
+    OOPSY = "oopsy"
+    STEAMER = "steamer"
     THE_BAT = "thebat"
     THE_BAT_X = "thebatx"
+    ZIPS = "zips"
+    ZIPSDC = "zipsdc"
 
 
 class StatType(Enum):

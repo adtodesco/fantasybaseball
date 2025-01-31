@@ -9,17 +9,23 @@ from .model import Position, StatType
 from .scoring import calculate_score_vector
 
 
-def add_mean_projections(projections):
-    projection_types = projections["ProjectionType"].unique()
+def add_mean_projection(projections, projection_types=None, name="mean"):
+    if projection_types is None:
+        projection_types = projections["ProjectionType"].unique()
+    else:
+        projection_types = [p.value for p in projection_types]
 
     group_by = ["Name", "PlayerId", "Position", "League", "Team", "ShortName"]
     if "Position" not in projections:
         group_by.remove("Position")
 
+    # Fill missing values with "--" so free agents can be grouped
+    projections[group_by] = projections[group_by].fillna("--")
+
     mean_projections = (
         projections[projections["ProjectionType"].isin(projection_types)].groupby(by=group_by).mean(numeric_only=True)
     )
-    mean_projections["ProjectionType"] = "mean"
+    mean_projections["ProjectionType"] = name
     mean_projections.reset_index(inplace=True)
 
     return pd.concat([projections, mean_projections], ignore_index=True)
@@ -66,7 +72,7 @@ FLEX_POSITIONS = {
 }
 
 
-def _calculate_replacement_level_ranks(league_roster):
+def _calculate_replacement_level_ranks(league_roster, include_bench=True):
     league_roster = copy.deepcopy(league_roster)
     team_count = league_roster["teams"]
     if not isinstance(team_count, int):
@@ -76,7 +82,7 @@ def _calculate_replacement_level_ranks(league_roster):
     positions = {Position(p): c for p, c in league_roster["positions"].items()}
     starter_count = sum(positions.values())
 
-    if bench_count:
+    if bench_count and include_bench:
         for position in positions.keys():
             bench_spots = positions[position] / starter_count * bench_count
             positions[position] += bench_spots
@@ -121,14 +127,18 @@ def _calculate_points_above_replacement(replacement_level_points, projection):
                 replacement_position = position
 
     if replacement_position is None:
+        print(f"replacement position is None for player {projection['Name']} with positions {positions}")
         replacement_position = max(projection_replacement_level_points, key=projection_replacement_level_points.get)
+        print(f"using {replacement_position} as replacement position")
 
     return projection["Points"] - projection_replacement_level_points[replacement_position]
 
 
 def add_points_above_replacement(projections, league_roster):
     replacement_level_ranks = _calculate_replacement_level_ranks(league_roster)
+    print(f"replacement_level_ranks: {replacement_level_ranks}")
     replacement_level_points = _calculate_replacement_level_points(projections, replacement_level_ranks)
+    print(f"replacement_level_points: {replacement_level_points}")
     calculate_points_above_replacement = functools.partial(
         _calculate_points_above_replacement, replacement_level_points
     )
@@ -189,9 +199,11 @@ def add_auction_values(
 
     bat_auction_values = bat_projections.apply(calculate_auction_value, axis=1)
     bat_projections["AuctionValue"] = bat_auction_values
+    bat_projections["ContractValue"] = bat_projections["AuctionValue"] - bat_projections["Salary"]
 
     pit_auction_values = pit_projections.apply(calculate_auction_value, axis=1)
     pit_projections["AuctionValue"] = pit_auction_values
+    pit_projections["ContractValue"] = pit_projections["AuctionValue"] - pit_projections["Salary"]
 
     return bat_projections, pit_projections
 
@@ -246,4 +258,17 @@ def add_league_info(projections, league_export):
     )
     del projections["FangraphsPlayerId"]
 
+    return projections
+
+
+def format_stats(projections, columns):
+    for column, col_type, *decimals in columns:
+        if col_type == "float" and decimals:
+            projections[column] = projections[column].round(decimals[0])
+        elif col_type == "int":
+            projections[column] = projections[column].astype(int)
+        elif col_type == "string":
+            projections[column] = projections[column].astype(str)
+        elif col_type == "currency" and decimals:
+            projections[column] = projections[column].round(decimals[0]).apply(lambda x: f"${x:,.2f}")
     return projections
