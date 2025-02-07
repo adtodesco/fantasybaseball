@@ -5,7 +5,7 @@ import math
 import numpy as np
 import pandas as pd
 
-from .model import Position, StatType
+from .model import Position, ProjectionType, StatType
 from .scoring import calculate_score_vector
 
 
@@ -127,18 +127,14 @@ def _calculate_points_above_replacement(replacement_level_points, projection):
                 replacement_position = position
 
     if replacement_position is None:
-        print(f"replacement position is None for player {projection['Name']} with positions {positions}")
         replacement_position = max(projection_replacement_level_points, key=projection_replacement_level_points.get)
-        print(f"using {replacement_position} as replacement position")
 
     return projection["Points"] - projection_replacement_level_points[replacement_position]
 
 
 def add_points_above_replacement(projections, league_roster):
     replacement_level_ranks = _calculate_replacement_level_ranks(league_roster)
-    print(f"replacement_level_ranks: {replacement_level_ranks}")
     replacement_level_points = _calculate_replacement_level_points(projections, replacement_level_ranks)
-    print(f"replacement_level_points: {replacement_level_points}")
     calculate_points_above_replacement = functools.partial(
         _calculate_points_above_replacement, replacement_level_points
     )
@@ -180,15 +176,21 @@ def add_auction_values(
     total_par = dict()
     bat_projection_types = bat_projections["ProjectionType"].unique()
     pit_projection_types = pit_projections["ProjectionType"].unique()
-    projection_types = set(bat_projection_types).intersection(set(pit_projection_types))
+    projection_types = set(bat_projection_types).union(set(pit_projection_types))
     for projection_type in projection_types:
         bat_par = bat_projections.loc[
             (bat_projections["ProjectionType"] == projection_type)
             & (bat_projections["PAR"] > 0.0)
             & (~bat_projections["PlayerId"].isin(rostered_players_ids))
         ]["PAR"].sum()
+
+        # Hack around missing BAT X pitcher projections
+        pit_projection_type = projection_type
+        if projection_type == ProjectionType.THE_BAT_X.value:
+            pit_projection_type = ProjectionType.THE_BAT.value
+
         pit_par = pit_projections.loc[
-            (pit_projections["ProjectionType"] == projection_type)
+            (pit_projections["ProjectionType"] == pit_projection_type)
             & (pit_projections["PAR"] > 0.0)
             & (~pit_projections["PlayerId"].isin(rostered_players_ids))
         ]["PAR"].sum()
@@ -252,7 +254,7 @@ def replace_positions(projections, league_export):
 
 def add_league_info(projections, league_export):
     projections = projections.merge(
-        league_export[["Status", "Salary", "Contract", "FangraphsPlayerId"]],
+        league_export[["Status", "Age", "Salary", "Contract", "FangraphsPlayerId", "FantraxPlayerId"]],
         left_on="PlayerId",
         right_on="FangraphsPlayerId",
     )
