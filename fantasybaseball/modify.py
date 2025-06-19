@@ -5,15 +5,15 @@ import math
 import numpy as np
 import pandas as pd
 
-from .model import Position, ProjectionType, StatType
+from .model import Position, ProjectionSource, ProjectionSourceName, StatCategory
 from .scoring import calculate_score_vector
 
 
-def add_mean_projection(projections, projection_types=None, name="mean"):
-    if projection_types is None:
-        projection_types = projections["ProjectionType"].unique()
+def add_mean_projection(projections, projection_sources=None, name="mean"):
+    if projection_sources is None:
+        projection_sources = projections["ProjectionSource"].unique()
     else:
-        projection_types = [p.value for p in projection_types]
+        projection_sources = [p.value for p in projection_sources]
 
     group_by = ["Name", "PlayerId", "Position", "League", "Team", "ShortName"]
     if "Position" not in projections:
@@ -23,24 +23,26 @@ def add_mean_projection(projections, projection_types=None, name="mean"):
     projections[group_by] = projections[group_by].fillna("--")
 
     mean_projections = (
-        projections[projections["ProjectionType"].isin(projection_types)].groupby(by=group_by).mean(numeric_only=True)
+        projections[projections["ProjectionSource"].isin(projection_sources)]
+        .groupby(by=group_by)
+        .mean(numeric_only=True)
     )
-    mean_projections["ProjectionType"] = name
+    mean_projections["ProjectionSource"] = name
     mean_projections.reset_index(inplace=True)
 
     return pd.concat([projections, mean_projections], ignore_index=True)
 
 
-def add_points(projections, stat_type, league_scoring, use_stat_proxies=False):
+def add_points(projections, stat_category, league_scoring, use_stat_proxies=False):
     stat_cols = list(projections.select_dtypes(include=["number"]))
     score_vector = calculate_score_vector(
-        stat_type=stat_type,
+        stat_category=stat_category,
         stat_cols=stat_cols,
         league_scoring=league_scoring,
         use_stat_proxies=use_stat_proxies,
     )
 
-    if stat_type == StatType.BATTING:
+    if stat_category == StatCategory.BATTING:
         count = projections["G"]
         points_per_count_label = "Pts/G"
     else:
@@ -97,24 +99,28 @@ def _calculate_replacement_level_ranks(league_roster, include_bench=True):
     return {p: c * team_count for p, c in positions.items()}
 
 
-def _calculate_replacement_level_points(projections, replacement_level_ranks):
+def _calculate_replacement_level_points(projections, replacement_level_ranks, replacement_players=5):
     replacement_level_points = dict()
-    for projection_type in projections["ProjectionType"].unique():
-        replacement_level_points[projection_type] = dict()
+    for projection_source in projections["ProjectionSource"].unique():
+        replacement_level_points[projection_source] = dict()
         for position, rank in replacement_level_ranks.items():
             position_projections = projections.loc[
-                (projections["ProjectionType"] == projection_type)
+                (projections["ProjectionSource"] == projection_source)
                 & projections["Position"].str.contains(position.value)
             ]
             if not position_projections.empty:
-                points = position_projections.nlargest(math.ceil(rank), "Points").iloc[-1]["Points"]
-                replacement_level_points[projection_type][position.value] = points
+                points = (
+                    position_projections.nlargest(math.ceil(rank + replacement_players - 1), "Points")
+                    .nsmallest(replacement_players, "Points")["Points"]
+                    .mean()
+                )
+                replacement_level_points[projection_source][position.value] = points
 
     return replacement_level_points
 
 
 def _calculate_points_above_replacement(replacement_level_points, projection):
-    projection_replacement_level_points = replacement_level_points[projection["ProjectionType"]]
+    projection_replacement_level_points = replacement_level_points[projection["ProjectionSource"]]
     positions = projection["Position"].split("/")
     replacement_position = None
     for position in positions:
@@ -132,8 +138,8 @@ def _calculate_points_above_replacement(replacement_level_points, projection):
     return projection["Points"] - projection_replacement_level_points[replacement_position]
 
 
-def add_points_above_replacement(projections, league_roster):
-    replacement_level_ranks = _calculate_replacement_level_ranks(league_roster)
+def add_points_above_replacement(projections, league_roster, include_bench=True):
+    replacement_level_ranks = _calculate_replacement_level_ranks(league_roster, include_bench)
     replacement_level_points = _calculate_replacement_level_points(projections, replacement_level_ranks)
     calculate_points_above_replacement = functools.partial(
         _calculate_points_above_replacement, replacement_level_points
@@ -145,8 +151,8 @@ def add_points_above_replacement(projections, league_roster):
 
 
 def _calculate_auction_value(par_value, minimum_salary, projection):
-    if projection["ProjectionType"] in par_value:
-        return projection["PAR"] * par_value[projection["ProjectionType"]] + minimum_salary
+    if projection["ProjectionSource"] in par_value:
+        return projection["PAR"] * par_value[projection["ProjectionSource"]] + minimum_salary
 
     return np.nan
 
@@ -174,27 +180,29 @@ def add_auction_values(
     )
 
     total_par = dict()
-    bat_projection_types = bat_projections["ProjectionType"].unique()
-    pit_projection_types = pit_projections["ProjectionType"].unique()
-    projection_types = set(bat_projection_types).union(set(pit_projection_types))
-    for projection_type in projection_types:
+    bat_projection_sources = bat_projections["ProjectionSource"].unique()
+    pit_projection_sources = pit_projections["ProjectionSource"].unique()
+    projection_sources = set(bat_projection_sources).union(set(pit_projection_sources))
+    for projection_source in projection_sources:
         bat_par = bat_projections.loc[
-            (bat_projections["ProjectionType"] == projection_type)
+            (bat_projections["ProjectionSource"] == projection_source)
             & (bat_projections["PAR"] > 0.0)
             & (~bat_projections["PlayerId"].isin(rostered_players_ids))
         ]["PAR"].sum()
 
         # Hack around missing BAT X pitcher projections
-        pit_projection_type = projection_type
-        if projection_type == ProjectionType.THE_BAT_X.value:
-            pit_projection_type = ProjectionType.THE_BAT.value
+        pit_projection_source = projection_source
+        if projection_source == ProjectionSource(ProjectionSourceName.THE_BAT_X):
+            pit_projection_source = ProjectionSource(ProjectionSourceName.THE_BAT).value
+        elif projection_source == ProjectionSource(ProjectionSourceName.THE_BAT_X, ros=True):
+            pit_projection_source = ProjectionSource(ProjectionSourceName.THE_BAT, ros=True).value
 
         pit_par = pit_projections.loc[
-            (pit_projections["ProjectionType"] == pit_projection_type)
+            (pit_projections["ProjectionSource"] == pit_projection_source)
             & (pit_projections["PAR"] > 0.0)
             & (~pit_projections["PlayerId"].isin(rostered_players_ids))
         ]["PAR"].sum()
-        total_par[projection_type] = bat_par + pit_par
+        total_par[projection_source] = bat_par + pit_par
 
     par_value = {p: total_auction_value / t for p, t in total_par.items()}
     calculate_auction_value = functools.partial(_calculate_auction_value, par_value, minimum_salary)
@@ -211,8 +219,8 @@ def add_auction_values(
 
 
 def order_and_rank_rows(projections, order_by, asc=True):
-    projections = projections.sort_values(["ProjectionType", order_by], ascending=[True, asc])
-    rank = projections.groupby("ProjectionType")[order_by].rank(ascending=asc).astype(int)
+    projections = projections.sort_values(["ProjectionSource", order_by], ascending=[True, asc])
+    rank = projections.groupby("ProjectionSource")[order_by].rank(ascending=asc).astype(int)
     if "Rank" in projections:
         projections.pop("Rank")
     projections.insert(1, "Rank", rank)
@@ -265,10 +273,13 @@ def add_league_info(projections, league_export):
 
 def format_stats(projections, columns):
     for column, col_type, *decimals in columns:
+        if column not in projections:
+            continue
+
         if col_type == "float" and decimals:
             projections[column] = projections[column].round(decimals[0])
         elif col_type == "int":
-            projections[column] = projections[column].astype(int)
+            projections[column] = pd.to_numeric(projections[column], errors="coerce").fillna(0).astype(int)
         elif col_type == "string":
             projections[column] = projections[column].astype(str)
         elif col_type == "currency" and decimals:

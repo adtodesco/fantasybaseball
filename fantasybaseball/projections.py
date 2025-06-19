@@ -3,7 +3,7 @@ from datetime import datetime
 
 import pandas as pd
 
-from .model import ProjectionType, StatType
+from .model import ProjectionSource, ProjectionSourceName, StatCategory
 from .modify import (
     add_auction_values,
     add_league_info,
@@ -20,7 +20,7 @@ from .modify import (
 logger = logging.getLogger(__name__)
 
 BAT_START_COLUMNS = [
-    ("ProjectionType", "string"),
+    ("ProjectionSource", "string"),
     ("Rank", "int"),
     ("Position", "string"),
     ("Name", "string"),
@@ -80,7 +80,7 @@ BAT_START_COLUMNS = [
 ]
 
 PIT_START_COLUMNS = [
-    ("ProjectionType", "string"),
+    ("ProjectionSource", "string"),
     ("Rank", "int"),
     ("Position", "string"),
     ("Name", "string"),
@@ -133,26 +133,28 @@ PIT_START_COLUMNS = [
 FANGRAPHS_TO_FANTRAX_FILE = "sitemaps/fangraphs_to_fantrax.csv"
 
 
-def augment_projections(bat_projections, pit_projections, league=None, league_export=None):
+def augment_projections(
+    bat_projections, pit_projections, league=None, league_export=None, include_bench=True, ros=False
+):
     bat_projections = add_mean_projection(
         bat_projections,
-        projection_types=[
-            ProjectionType.OOPSY,
-            ProjectionType.STEAMER,
-            ProjectionType.THE_BAT_X,
-            ProjectionType.ZIPSDC,
+        projection_sources=[
+            ProjectionSource(ProjectionSourceName.OOPSY, ros),
+            ProjectionSource(ProjectionSourceName.STEAMER, ros),
+            ProjectionSource(ProjectionSourceName.THE_BAT_X, ros),
+            ProjectionSource(ProjectionSourceName.ZIPSDC, ros),
         ],
-        name="zobs",
+        name="rzobs" if ros else "zobs",
     )
     pit_projections = add_mean_projection(
         pit_projections,
-        projection_types=[
-            ProjectionType.OOPSY,
-            ProjectionType.STEAMER,
-            ProjectionType.THE_BAT,
-            ProjectionType.ZIPSDC,
+        projection_sources=[
+            ProjectionSource(ProjectionSourceName.OOPSY, ros),
+            ProjectionSource(ProjectionSourceName.STEAMER, ros),
+            ProjectionSource(ProjectionSourceName.THE_BAT, ros),
+            ProjectionSource(ProjectionSourceName.ZIPSDC, ros),
         ],
-        name="zobs",
+        name="rzobs" if ros else "zobs",
     )
 
     rostered_players = None
@@ -167,13 +169,17 @@ def augment_projections(bat_projections, pit_projections, league=None, league_ex
 
     if league:
         if "scoring" in league:
-            bat_projections = add_points(bat_projections, StatType.BATTING, league["scoring"], use_stat_proxies=True)
-            pit_projections = add_points(pit_projections, StatType.PITCHING, league["scoring"], use_stat_proxies=True)
+            bat_projections = add_points(
+                bat_projections, StatCategory.BATTING, league["scoring"], use_stat_proxies=True
+            )
+            pit_projections = add_points(
+                pit_projections, StatCategory.PITCHING, league["scoring"], use_stat_proxies=True
+            )
 
             if "roster" in league:
-                bat_projections = add_points_above_replacement(bat_projections, league["roster"])
+                bat_projections = add_points_above_replacement(bat_projections, league["roster"], include_bench)
                 pit_projections = add_pitcher_position(pit_projections, league["roster"])
-                pit_projections = add_points_above_replacement(pit_projections, league["roster"])
+                pit_projections = add_points_above_replacement(pit_projections, league["roster"], include_bench)
 
                 if "salary" in league:
                     bat_projections, pit_projections = add_auction_values(
@@ -195,9 +201,9 @@ def augment_projections(bat_projections, pit_projections, league=None, league_ex
     return bat_projections, pit_projections
 
 
-def write_projections_file(projections, stat_type, output_dir, league_name=None, custom=None):
+def write_projections_file(projections, stat_category, output_dir, league_name=None, custom=None):
     current_time_string = datetime.utcnow().strftime("%Y-%m-%d")
-    filename = f"{stat_type.value}_{current_time_string}.csv"
+    filename = f"{stat_category.value}_{current_time_string}.csv"
     if custom:
         filename = f"{custom}_{filename}"
     if league_name:

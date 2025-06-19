@@ -2,7 +2,7 @@ import logging
 
 import pandas as pd
 
-from .model import Stat, StatType
+from .model import Stat, StatCategory
 
 logger = logging.getLogger(__name__)
 
@@ -37,20 +37,20 @@ PIT_STAT_PROXIES = {
 }
 
 
-def calculate_score_vector(stat_type, stat_cols, league_scoring, use_stat_proxies=False):
-    if isinstance(stat_type, str):
-        stat_type = StatType(str)
-    if stat_type not in [StatType.BATTING, StatType.PITCHING]:
-        raise TypeError(f"stat_type must be a `StatType` object.")
+def calculate_score_vector(stat_category, stat_cols, league_scoring, use_stat_proxies=False):
+    if isinstance(stat_category, str):
+        stat_category = StatCategory(str)
+    if stat_category not in [StatCategory.BATTING, StatCategory.PITCHING]:
+        raise TypeError(f"stat_category must be a `StatCategory` object.")
     stat_proxies = dict()
     if use_stat_proxies:
-        if stat_type == StatType.BATTING:
+        if stat_category == StatCategory.BATTING:
             stat_proxies = BAT_STAT_PROXIES
         else:
             stat_proxies = PIT_STAT_PROXIES
 
     coefficients = {c: 0.0 for c in stat_cols}
-    for stat, points in league_scoring[stat_type.value].items():
+    for stat, points in league_scoring[stat_category.value].items():
         if stat in stat_cols:
             coefficients[stat] += float(points)
         elif stat in stat_proxies:

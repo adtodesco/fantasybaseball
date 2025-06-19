@@ -1,7 +1,7 @@
 from enum import Enum
 
 
-class ProjectionType(Enum):
+class ProjectionSourceName(Enum):
     ATC = "atc"
     DEPTH_CHARTS = "fangraphsdc"
     OOPSY = "oopsy"
@@ -12,7 +12,28 @@ class ProjectionType(Enum):
     ZIPSDC = "zipsdc"
 
 
-class StatType(Enum):
+class ProjectionSource:
+    def __init__(self, name, ros=False):
+        if isinstance(name, str):
+            name = ProjectionSourceName(name)
+        self.name = name
+        self.ros = ros
+
+    @property
+    def value(self):
+        if not self.ros:
+            return self.name.value
+        if self.name == ProjectionSourceName.STEAMER:
+            return f"{self.name.value}r"
+        elif self.name == ProjectionSourceName.ATC:
+            return f"r{self.name.value}dc"
+        elif self.name == ProjectionSourceName.OOPSY:
+            return f"r{self.name.value}dc"
+        else:
+            return f"r{self.name.value}"
+
+
+class StatCategory(Enum):
     BATTING = "bat"
     PITCHING = "pit"
 
