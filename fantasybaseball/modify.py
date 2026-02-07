@@ -15,12 +15,22 @@ def add_mean_projection(projections, projection_sources=None, name="mean"):
     else:
         projection_sources = [p.value for p in projection_sources]
 
-    group_by = ["Name", "PlayerId", "Position", "League", "Team", "ShortName"]
+    group_by = ["Name", "MlbamId", "FangraphsId", "Position", "League", "Team", "ShortName"]
     if "Position" not in projections:
         group_by.remove("Position")
 
-    # Fill missing values with "--" so free agents can be grouped
-    projections[group_by] = projections[group_by].fillna("--")
+    # Fill missing values so free agents can be grouped
+    # String columns get "--", integer ID columns get -1
+    string_cols = ["Name", "Position", "League", "Team", "ShortName"]
+    int_cols = ["MlbamId", "FangraphsId"]
+
+    for col in string_cols:
+        if col in group_by and col in projections.columns:
+            projections[col] = projections[col].fillna("--")
+
+    for col in int_cols:
+        if col in group_by and col in projections.columns:
+            projections[col] = projections[col].fillna(-1)
 
     mean_projections = (
         projections[projections["ProjectionSource"].isin(projection_sources)]
@@ -167,16 +177,19 @@ def add_auction_values(
 ):
     if rostered_players is None:
         rostered_players_total_salary = 0.0
-        rostered_players_ids = list()
+        rostered_mlbam_ids = list()
+        rostered_fangraphs_ids = list()
     else:
         rostered_players_total_salary = rostered_players["Salary"].sum()
-        rostered_players_ids = rostered_players["FangraphsPlayerId"]
+        rostered_mlbam_ids = rostered_players["MlbamId"].dropna().tolist()
+        rostered_fangraphs_ids = rostered_players["FangraphsId"].dropna().tolist()
     team_count = league_roster["teams"]
     roster_spots = sum(league_roster["positions"].values())
     salary_cap = league_salary["cap"]
     minimum_salary = league_salary["minimum"]
+    rostered_count = max(len(rostered_mlbam_ids), len(rostered_fangraphs_ids))
     total_auction_value = (team_count * salary_cap - rostered_players_total_salary) - (
-        team_count * roster_spots * minimum_salary - len(rostered_players_ids) * rostered_players_majors_perc
+        team_count * roster_spots * minimum_salary - rostered_count * rostered_players_majors_perc
     )
 
     total_par = dict()
@@ -187,7 +200,8 @@ def add_auction_values(
         bat_par = bat_projections.loc[
             (bat_projections["ProjectionSource"] == projection_source)
             & (bat_projections["PAR"] > 0.0)
-            & (~bat_projections["PlayerId"].isin(rostered_players_ids))
+            & (~bat_projections["MlbamId"].isin(rostered_mlbam_ids))
+            & (~bat_projections["FangraphsId"].isin(rostered_fangraphs_ids))
         ]["PAR"].sum()
 
         # Hack around missing BAT X pitcher projections
@@ -200,7 +214,8 @@ def add_auction_values(
         pit_par = pit_projections.loc[
             (pit_projections["ProjectionSource"] == pit_projection_source)
             & (pit_projections["PAR"] > 0.0)
-            & (~pit_projections["PlayerId"].isin(rostered_players_ids))
+            & (~pit_projections["MlbamId"].isin(rostered_mlbam_ids))
+            & (~pit_projections["FangraphsId"].isin(rostered_fangraphs_ids))
         ]["PAR"].sum()
         total_par[projection_source] = bat_par + pit_par
 
@@ -245,10 +260,21 @@ def order_columns(projections, columns, front=True):
 
 def _replace_position(league_export, projection):
     position = projection["Position"]
-    league_player = league_export[league_export["FangraphsPlayerId"] == projection["PlayerId"]]
-    if not league_player.empty:
-        position = league_player.iloc[0]["Position"]
-        position = position.replace(",", "/")
+
+    # Try matching on MLBAM ID first
+    if pd.notna(projection.get("MlbamId")):
+        league_player = league_export[league_export["MlbamId"] == projection["MlbamId"]]
+        if not league_player.empty:
+            position = league_player.iloc[0]["Position"]
+            position = position.replace(",", "/")
+            return position
+
+    # Fallback to Fangraphs ID
+    if pd.notna(projection.get("FangraphsId")):
+        league_player = league_export[league_export["FangraphsId"] == projection["FangraphsId"]]
+        if not league_player.empty:
+            position = league_player.iloc[0]["Position"]
+            position = position.replace(",", "/")
 
     return position
 
@@ -261,13 +287,8 @@ def replace_positions(projections, league_export):
 
 
 def add_league_info(projections, league_export):
-    projections = projections.merge(
-        league_export[["Status", "Age", "Salary", "Contract", "FangraphsPlayerId", "FantraxPlayerId"]],
-        left_on="PlayerId",
-        right_on="FangraphsPlayerId",
-    )
-    del projections["FangraphsPlayerId"]
-
+    # This function is deprecated - merging now happens in projections.py
+    # via _merge_with_league_export(). Keeping this as a no-op for compatibility.
     return projections
 
 
