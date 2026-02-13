@@ -258,6 +258,10 @@ def augment_projections(
 
         bat_projections = replace_positions(bat_projections, league_export)
 
+    # Strip pitcher positions from batting projections (fixes two-way players like Ohtani)
+    if "Position" in bat_projections.columns:
+        bat_projections["Position"] = bat_projections["Position"].str.replace(r"[,/]?P", "", regex=True).str.strip("/,")
+
     if league:
         if "scoring" in league:
             bat_projections = add_points(

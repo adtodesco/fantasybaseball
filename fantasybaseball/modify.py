@@ -9,6 +9,14 @@ from .model import Position, ProjectionSource, ProjectionSourceName, StatCategor
 from .scoring import calculate_score_vector
 
 
+def standardize_name_format(name):
+    """Converts 'Last, First' name format to 'First Last'."""
+    if isinstance(name, str) and ", " in name:
+        parts = name.split(", ")
+        if len(parts) == 2:
+            return f"{parts[1]} {parts[0]}"
+    return name
+
 def add_mean_projection(projections, projection_sources=None, name="mean"):
     if projection_sources is None:
         projection_sources = projections["ProjectionSource"].unique()
