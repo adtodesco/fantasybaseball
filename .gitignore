@@ -4,6 +4,9 @@ projections/*.csv
 # Export files
 exports/*.csv
 
+# User config
+config.yaml
+
 # python files
 __pycache__
 .venv

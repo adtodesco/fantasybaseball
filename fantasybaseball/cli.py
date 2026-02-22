@@ -15,6 +15,14 @@ from fantasybaseball.playerids import default_player_id_map_path
 from fantasybaseball.projections import augment_projections, write_projections_file
 
 
+def load_config_defaults():
+    config_path = pathlib.Path("config.yaml")
+    if config_path.exists():
+        with open(config_path) as f:
+            return yaml.safe_load(f) or {}
+    return {}
+
+
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--projection-source", nargs="+", default=[p.value for p in ProjectionSourceName])
@@ -25,6 +33,12 @@ def get_args():
     parser.add_argument("-e", "--league-export", default=None)
     parser.add_argument("-o", "--output-dir", default="projections/")
     parser.add_argument("--player-id-map", default=default_player_id_map_path())
+    parser.add_argument("--power-factor", type=float, default=None)
+
+    config = load_config_defaults()
+    if config:
+        parser.set_defaults(**config)
+
     return parser.parse_args()
 
 
@@ -95,6 +109,7 @@ def main():
     bat_projections, pit_projections = augment_projections(
         bat_projections, pit_projections, league, league_export, include_bench, args.rest_of_season,
         player_id_map_path=args.player_id_map,
+        power_factor=args.power_factor,
     )
 
     league_name = league.name if league else None

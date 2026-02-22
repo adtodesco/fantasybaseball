@@ -59,7 +59,7 @@ def _calculate_replacement_level_points(projections, replacement_level_ranks, re
     return replacement_level_points
 
 
-def add_points_above_replacement(projections, league_roster, include_bench=True):
+def calculate_points_above_replacement(projections, league_roster, include_bench=True):
     replacement_level_ranks = _calculate_replacement_level_ranks(league_roster, include_bench)
     replacement_level_points = _calculate_replacement_level_points(projections, replacement_level_ranks)
 
@@ -94,5 +94,4 @@ def add_points_above_replacement(projections, league_roster, include_bench=True)
     fallback_series = projections["ProjectionSource"].map(fallback)
     replacement_pts = best_repl.reindex(projections.index).fillna(fallback_series)
 
-    projections["PAR"] = projections["Points"] - replacement_pts
-    return projections
+    return projections["Points"] - replacement_pts

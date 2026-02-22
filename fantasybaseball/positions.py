@@ -1,7 +1,7 @@
 import pandas as pd
 
 
-def add_pitcher_position(projections, league_roster):
+def replace_pitcher_position(projections, league_roster):
     projections = projections.copy()
     if "SP" in league_roster["positions"] or "RP" in league_roster["positions"]:
         projections["Position"] = ["SP" if gs > 0.0 else "RP" for gs in projections["GS"]]

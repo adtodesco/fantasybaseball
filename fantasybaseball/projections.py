@@ -6,17 +6,17 @@ from .columns import BAT_START_COLUMNS, PIT_START_COLUMNS
 from .playerids import load_player_id_map, merge_with_league_export
 from .aggregation import add_mean_projection
 from .formatting import format_currency_for_csv, format_stats, order_and_rank_rows, order_columns
-from .points import add_points
-from .positions import add_pitcher_position, replace_positions
-from .replacement import add_points_above_replacement
-from .valuation import add_auction_values
+from .points import calculate_points
+from .positions import replace_pitcher_position, replace_positions
+from .replacement import calculate_points_above_replacement
+from .valuation import calculate_auction_values
 
 logger = logging.getLogger(__name__)
 
 
 def augment_projections(
     bat_projections, pit_projections, league_config=None, league_export=None, include_bench=True, ros=False,
-    player_id_map_path=None,
+    player_id_map_path=None, power_factor=None,
 ):
     bat_projections = add_mean_projection(
         bat_projections,
@@ -39,7 +39,6 @@ def augment_projections(
         name="rzobs" if ros else "zobs",
     )
 
-    rostered_players = None
     if league_export is not None:
         player_id_map = load_player_id_map(player_id_map_path)
 
@@ -64,22 +63,35 @@ def augment_projections(
 
     if league_config:
         if "scoring" in league_config:
-            bat_projections = add_points(
+            bat_projections["Points"] = calculate_points(
                 bat_projections, StatCategory.BATTING, league_config["scoring"], use_stat_proxies=True
             )
-            pit_projections = add_points(
+            bat_projections["Pts/G"] = bat_projections["Points"] / bat_projections["G"]
+
+            pit_projections["Points"] = calculate_points(
                 pit_projections, StatCategory.PITCHING, league_config["scoring"], use_stat_proxies=True
             )
+            pit_projections["Pts/IP"] = pit_projections["Points"] / pit_projections["IP"]
 
             if "roster" in league_config:
-                bat_projections = add_points_above_replacement(bat_projections, league_config["roster"], include_bench)
-                pit_projections = add_pitcher_position(pit_projections, league_config["roster"])
-                pit_projections = add_points_above_replacement(pit_projections, league_config["roster"], include_bench)
+                bat_projections["PAR"] = calculate_points_above_replacement(
+                    bat_projections, league_config["roster"], include_bench
+                )
+                pit_projections = replace_pitcher_position(pit_projections, league_config["roster"])
+                pit_projections["PAR"] = calculate_points_above_replacement(
+                    pit_projections, league_config["roster"], include_bench
+                )
 
                 if "salary" in league_config:
-                    bat_projections, pit_projections = add_auction_values(
-                        bat_projections, pit_projections, league_config["roster"], league_config["salary"], rostered_players
-                    )
+                    roster, salary = league_config["roster"], league_config["salary"]
+                    bat_projections["AuctionValue"], pit_projections["AuctionValue"] = \
+                        calculate_auction_values(bat_projections, pit_projections, roster, salary)
+                    bat_projections["ContractValue"] = bat_projections["AuctionValue"] - bat_projections["Salary"]
+                    pit_projections["ContractValue"] = pit_projections["AuctionValue"] - pit_projections["Salary"]
+
+                    if power_factor:
+                        bat_projections["CurvedValue"], pit_projections["CurvedValue"] = \
+                            calculate_auction_values(bat_projections, pit_projections, roster, salary, power_factor)
 
             bat_projections = order_and_rank_rows(bat_projections, order_by="Points", asc=False)
             pit_projections = order_and_rank_rows(pit_projections, order_by="Points", asc=False)
