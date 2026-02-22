@@ -13,15 +13,22 @@ keywords = ["fantasy-sports", "data-analysis", "python"]
 dependencies = ["requests", "pandas", "progressbar2", "pyyaml"]
 dynamic = ["version"]
 
+[project.optional-dependencies]
+dev = ["pytest"]
+
 [project.urls]
 homepage = "https://github.com/adtodesco/fantasybaseball"
 repository = "https://github.com/adtodesco/fantasybaseball"
 
 [project.scripts]
 fbb = "fantasybaseball.cli:main"
+fbb-rankings = "fantasybaseball.powerrankings:main"
 
 [tool.setuptools.packages]
 find = {}
+
+[tool.setuptools.package-data]
+fantasybaseball = ["data/*.csv"]
 
 [tool.black]
 line-length = 120

@@ -1,13 +1,13 @@
 name: standard
 scoring:
-  batting:
+  bat:
     TB: 1
     R: 1
     RBI: 1
     BB: 1
     SO: -1
     SB: 1
-  pitching:
+  pit:
     IP: 3
     ER: -2
     H: -1

@@ -3,10 +3,8 @@ from pathlib import Path
 
 import pandas as pd
 
-# Number of players to consider per team for each category
 NUM_BATTERS_PER_TEAM = 15
 NUM_PITCHERS_PER_TEAM = 15
-projection_source = "zobs"
 
 
 def parse_args():
@@ -67,17 +65,8 @@ def generate_power_rankings(
     num_pitchers=NUM_PITCHERS_PER_TEAM,
 ) -> dict[str, pd.DataFrame]:
     """Generate power rankings for teams based on projections."""
-    # Load projections with pre-calculated points
     bat_proj = pd.read_csv(bat_proj_path)
     pit_proj = pd.read_csv(pit_proj_path)
-
-    # Clean monetary columns by removing '$' and converting to float
-    money_columns = ["Salary", "AuctionValue", "ContractValue"]
-    for col in money_columns:
-        if col in bat_proj.columns:
-            bat_proj[col] = bat_proj[col].str.replace("$", "").astype(float)
-        if col in pit_proj.columns:
-            pit_proj[col] = pit_proj[col].str.replace("$", "").astype(float)
 
     # Filter for specified projection type
     bat_proj = bat_proj[bat_proj["ProjectionSource"] == projection_source]
@@ -97,7 +86,7 @@ def generate_power_rankings(
     return rankings
 
 
-if __name__ == "__main__":
+def main():
     args = parse_args()
 
     bat_path = Path(args.bat_projections)

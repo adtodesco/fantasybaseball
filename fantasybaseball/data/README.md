@@ -21,8 +21,8 @@ the CSV export because:
 
 **Easy way (recommended):**
 ```bash
-python sitemaps/refresh_player_map.py
-git add sitemaps/player_id_map.csv
+python fantasybaseball/data/refresh_player_map.py
+git add fantasybaseball/data/player_id_map.csv
 git commit -m "Update player ID mapping"
 ```
 
@@ -30,7 +30,7 @@ git commit -m "Update player ID mapping"
 1. Visit https://www.smartfantasybaseball.com/tools/
 2. Find the Player ID Map section
 3. Download the CSV export
-4. Save as `sitemaps/player_id_map.csv`
+4. Save as `fantasybaseball/data/player_id_map.csv`
 5. Commit to repository
 
 **Recommended refresh frequency:**

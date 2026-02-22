@@ -19,6 +19,16 @@ class ProjectionSource:
         self.name = name
         self.ros = ros
 
+    def __eq__(self, other):
+        if isinstance(other, ProjectionSource):
+            return self.value == other.value
+        if isinstance(other, str):
+            return self.value == other
+        return NotImplemented
+
+    def __hash__(self):
+        return hash(self.value)
+
     @property
     def value(self):
         if not self.ros:

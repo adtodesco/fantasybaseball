@@ -8,8 +8,10 @@ import progressbar
 import requests
 import yaml
 
+from fantasybaseball.config import load_league_config
 from fantasybaseball.fangraphs import get_projections
 from fantasybaseball.model import ProjectionSource, ProjectionSourceName, StatCategory
+from fantasybaseball.playerids import default_player_id_map_path
 from fantasybaseball.projections import augment_projections, write_projections_file
 
 
@@ -22,6 +24,7 @@ def get_args():
     parser.add_argument("-l", "--league-file", default=None)
     parser.add_argument("-e", "--league-export", default=None)
     parser.add_argument("-o", "--output-dir", default="projections/")
+    parser.add_argument("--player-id-map", default=default_player_id_map_path())
     return parser.parse_args()
 
 
@@ -56,7 +59,8 @@ def run_projection_requests(projection_requests, retries=3):
 
                 break
             except requests.exceptions.ConnectionError:
-                if retries:
+                retries -= 1
+                if retries >= 0:
                     time.sleep(5)
                 else:
                     raise
@@ -77,7 +81,7 @@ def main():
     league, league_export = None, None
     if args.league_file:
         with open(pathlib.Path(args.league_file).resolve()) as f:
-            league = yaml.safe_load(f)
+            league = load_league_config(yaml.safe_load(f))
     if args.league_export:
         league_export = pd.read_csv(args.league_export)
 
@@ -89,10 +93,11 @@ def main():
     projection_requests = create_projection_requests(stat_categories, projection_sources)
     bat_projections, pit_projections = run_projection_requests(projection_requests)
     bat_projections, pit_projections = augment_projections(
-        bat_projections, pit_projections, league, league_export, include_bench, args.rest_of_season
+        bat_projections, pit_projections, league, league_export, include_bench, args.rest_of_season,
+        player_id_map_path=args.player_id_map,
     )
 
-    league_name = league["name"] if league and "name" in league else None
+    league_name = league.name if league else None
     bat_file_path = write_projections_file(bat_projections, StatCategory.BATTING, output_dir, league_name)
     pit_file_path = write_projections_file(pit_projections, StatCategory.PITCHING, output_dir, league_name)
     print("New projection files:")
