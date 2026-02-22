@@ -1,7 +1,5 @@
 import numpy as np
 
-from .model import ProjectionSource, ProjectionSourceName
-
 
 def add_auction_values(
     bat_projections,
@@ -24,8 +22,10 @@ def add_auction_values(
     salary_cap = league_salary["cap"]
     minimum_salary = league_salary["minimum"]
     rostered_count = max(len(rostered_mlbam_ids), len(rostered_fangraphs_ids))
-    total_auction_value = (team_count * salary_cap - rostered_players_total_salary) - (
-        team_count * roster_spots * minimum_salary - rostered_count * rostered_players_majors_perc
+    total_budget = team_count * salary_cap
+    total_roster_spots = team_count * roster_spots
+    total_auction_value = (total_budget - rostered_players_total_salary) - (
+        total_roster_spots * minimum_salary - rostered_count * rostered_players_majors_perc
     )
 
     total_par = dict()
@@ -40,15 +40,8 @@ def add_auction_values(
             & (~bat_projections["FangraphsId"].isin(rostered_fangraphs_ids))
         ]["PAR"].sum()
 
-        # Hack around missing BAT X pitcher projections
-        pit_projection_source = projection_source
-        if projection_source == ProjectionSource(ProjectionSourceName.THE_BAT_X):
-            pit_projection_source = ProjectionSource(ProjectionSourceName.THE_BAT).value
-        elif projection_source == ProjectionSource(ProjectionSourceName.THE_BAT_X, ros=True):
-            pit_projection_source = ProjectionSource(ProjectionSourceName.THE_BAT, ros=True).value
-
         pit_par = pit_projections.loc[
-            (pit_projections["ProjectionSource"] == pit_projection_source)
+            (pit_projections["ProjectionSource"] == projection_source)
             & (pit_projections["PAR"] > 0.0)
             & (~pit_projections["MlbamId"].isin(rostered_mlbam_ids))
             & (~pit_projections["FangraphsId"].isin(rostered_fangraphs_ids))

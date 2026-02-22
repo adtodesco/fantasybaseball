@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 def augment_projections(
-    bat_projections, pit_projections, league=None, league_export=None, include_bench=True, ros=False,
+    bat_projections, pit_projections, league_config=None, league_export=None, include_bench=True, ros=False,
     player_id_map_path=None,
 ):
     bat_projections = add_mean_projection(
@@ -62,23 +62,23 @@ def augment_projections(
     if "Position" in bat_projections.columns:
         bat_projections["Position"] = bat_projections["Position"].str.replace(r"[,/]?P", "", regex=True).str.strip("/,")
 
-    if league:
-        if "scoring" in league:
+    if league_config:
+        if "scoring" in league_config:
             bat_projections = add_points(
-                bat_projections, StatCategory.BATTING, league["scoring"], use_stat_proxies=True
+                bat_projections, StatCategory.BATTING, league_config["scoring"], use_stat_proxies=True
             )
             pit_projections = add_points(
-                pit_projections, StatCategory.PITCHING, league["scoring"], use_stat_proxies=True
+                pit_projections, StatCategory.PITCHING, league_config["scoring"], use_stat_proxies=True
             )
 
-            if "roster" in league:
-                bat_projections = add_points_above_replacement(bat_projections, league["roster"], include_bench)
-                pit_projections = add_pitcher_position(pit_projections, league["roster"])
-                pit_projections = add_points_above_replacement(pit_projections, league["roster"], include_bench)
+            if "roster" in league_config:
+                bat_projections = add_points_above_replacement(bat_projections, league_config["roster"], include_bench)
+                pit_projections = add_pitcher_position(pit_projections, league_config["roster"])
+                pit_projections = add_points_above_replacement(pit_projections, league_config["roster"], include_bench)
 
-                if "salary" in league:
+                if "salary" in league_config:
                     bat_projections, pit_projections = add_auction_values(
-                        bat_projections, pit_projections, league["roster"], league["salary"], rostered_players
+                        bat_projections, pit_projections, league_config["roster"], league_config["salary"], rostered_players
                     )
 
             bat_projections = order_and_rank_rows(bat_projections, order_by="Points", asc=False)
