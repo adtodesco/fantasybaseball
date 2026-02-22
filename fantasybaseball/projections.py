@@ -102,9 +102,7 @@ def augment_projections(
                         signed_bat = bat_projections["Status"].notna() & (bat_projections["Status"] != "FA")
                         signed_pit = pit_projections["Status"].notna() & (pit_projections["Status"] != "FA")
 
-                        available_budget = calculate_available_budget(
-                            bat_projections, pit_projections, roster, salary, signed_bat, signed_pit
-                        )
+                        available_budget = calculate_available_budget(roster, salary, league_export)
 
                         bat_projections["AuctionValue"], pit_projections["AuctionValue"] = calculate_auction_values(
                             bat_projections, pit_projections, roster, salary, pf,

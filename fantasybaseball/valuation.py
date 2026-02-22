@@ -12,7 +12,9 @@ def calculate_auction_values(
     roster_spots = sum(league_roster["positions"].values())
     salary_cap = league_salary["cap"]
     minimum_salary = league_salary["minimum"]
-    total_budget = team_count * salary_cap
+    minors_pct = league_salary.get("minors_pct", 0.0) if hasattr(league_salary, "get") else league_salary["minors_pct"]
+    effective_cap = salary_cap * (1 - minors_pct)
+    total_budget = team_count * effective_cap
     total_roster_spots = team_count * roster_spots
 
     if total_auction_value is None:
@@ -64,41 +66,21 @@ def calculate_auction_values(
 
 
 def calculate_available_budget(
-    bat_projections,
-    pit_projections,
     league_roster,
     league_salary,
-    signed_bat,
-    signed_pit,
+    league_export,
 ):
     team_count = league_roster["teams"]
-    roster_spots = sum(league_roster["positions"].values())
+    minors_spots = league_roster.get("minors", 0) if hasattr(league_roster, "get") else league_roster["minors"]
+    roster_spots = sum(league_roster["positions"].values()) + minors_spots
     salary_cap = league_salary["cap"]
     minimum_salary = league_salary["minimum"]
     total_budget = team_count * salary_cap
     total_roster_spots = team_count * roster_spots
 
-    # Deduplicate signed players across projection sources by MlbamId
-    signed_bat_df = bat_projections.loc[signed_bat, ["MlbamId", "Salary"]].drop_duplicates(subset="MlbamId")
-    signed_pit_df = pit_projections.loc[signed_pit, ["MlbamId", "Salary"]].drop_duplicates(subset="MlbamId")
-
-    # Combine and deduplicate across bat/pit (two-way players)
-    all_signed = (
-        _concat_nonempty([signed_bat_df, signed_pit_df])
-        .drop_duplicates(subset="MlbamId")
-    )
-
-    signed_salary = all_signed["Salary"].sum()
-    signed_count = len(all_signed)
+    signed = league_export[league_export["Status"].notna() & (league_export["Status"] != "FA")]
+    signed_salary = signed["Salary"].sum()
+    signed_count = len(signed)
     remaining_spots = total_roster_spots - signed_count
 
     return total_budget - signed_salary - (remaining_spots * minimum_salary)
-
-
-def _concat_nonempty(frames):
-    """pd.concat that handles all-empty gracefully."""
-    import pandas as pd
-    nonempty = [f for f in frames if len(f) > 0]
-    if not nonempty:
-        return pd.DataFrame(columns=["MlbamId", "Salary"])
-    return pd.concat(nonempty, ignore_index=True)

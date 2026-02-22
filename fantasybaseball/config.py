@@ -14,6 +14,7 @@ class ScoringConfig:
 class RosterConfig:
     teams: int = 12
     positions: dict[str, int] = field(default_factory=dict)
+    minors: int = 0
 
     def __getitem__(self, key):
         return getattr(self, key)
@@ -23,6 +24,7 @@ class RosterConfig:
 class SalaryConfig:
     cap: int = 260
     minimum: int = 1
+    minors_pct: float = 0.0
 
     def __getitem__(self, key):
         return getattr(self, key)
@@ -98,7 +100,8 @@ def load_league_config(yaml_dict):
         positions = {k: int(v) for k, v in roster_raw.get("positions", {}).items()}
         if not positions:
             raise ValueError("League roster must include 'positions'")
-        roster = RosterConfig(teams=teams_count, positions=positions)
+        minors = int(roster_raw.get("minors", 0))
+        roster = RosterConfig(teams=teams_count, positions=positions, minors=minors)
 
     # Salary (optional)
     salary = SalaryConfig()
@@ -107,6 +110,7 @@ def load_league_config(yaml_dict):
         salary = SalaryConfig(
             cap=int(salary_raw.get("cap", 260)),
             minimum=int(salary_raw.get("minimum", 1)),
+            minors_pct=float(salary_raw.get("minors_pct", 0.0)),
         )
 
     return LeagueConfig(name=name, scoring=scoring, roster=roster, salary=salary)

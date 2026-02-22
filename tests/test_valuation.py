@@ -128,25 +128,39 @@ class TestCalculateAuctionValues:
         assert pit_values.notna().all()
 
 
+    def test_minors_pct_reduces_player_value_budget(self, sample_data):
+        bat, pit, roster, salary = sample_data
+        # Default: no minors_pct
+        bat_default, pit_default = calculate_auction_values(bat, pit, roster, salary)
+
+        # With 20% minors_pct — effective cap is 80% of 260 = 208
+        salary_with_minors = {"cap": 260, "minimum": 1, "minors_pct": 0.20}
+        bat_minors, pit_minors = calculate_auction_values(bat, pit, roster, salary_with_minors)
+
+        # Total budget is lower, so values for positive-PAR players should be lower
+        assert bat_minors.iloc[0] < bat_default.iloc[0]
+        assert pit_minors.iloc[0] < pit_default.iloc[0]
+
+    def test_minors_pct_zero_matches_default(self, sample_data):
+        bat, pit, roster, salary = sample_data
+        salary_explicit = {"cap": 260, "minimum": 1, "minors_pct": 0.0}
+        bat_default, pit_default = calculate_auction_values(bat, pit, roster, salary)
+        bat_explicit, pit_explicit = calculate_auction_values(bat, pit, roster, salary_explicit)
+
+        assert bat_default.values == pytest.approx(bat_explicit.values)
+        assert pit_default.values == pytest.approx(pit_explicit.values)
+
+
 class TestCalculateAvailableBudget:
     def test_basic_budget_calculation(self):
-        bat = pd.DataFrame({
-            "ProjectionSource": ["steamer", "steamer"],
-            "MlbamId": [1, 2],
-            "Salary": [25.0, 0.0],
-        })
-        pit = pd.DataFrame({
-            "ProjectionSource": ["steamer"],
-            "MlbamId": [3],
-            "Salary": [15.0],
+        league_export = pd.DataFrame({
+            "Status": ["Signed", "FA", "Signed"],
+            "Salary": [25.0, 0.0, 15.0],
         })
         roster = {"teams": 10, "positions": {"C": 1, "P": 1, "bench": 1}}
         salary = {"cap": 260, "minimum": 1}
 
-        signed_bat = pd.Series([True, False], index=bat.index)
-        signed_pit = pd.Series([True], index=pit.index)
-
-        budget = calculate_available_budget(bat, pit, roster, salary, signed_bat, signed_pit)
+        budget = calculate_available_budget(roster, salary, league_export)
 
         # total_budget = 10 * 260 = 2600
         # signed_salary = 25 + 15 = 40
@@ -155,74 +169,62 @@ class TestCalculateAvailableBudget:
         # available = 2600 - 40 - 28 * 1 = 2532
         assert budget == pytest.approx(2532.0)
 
-    def test_deduplicates_across_projection_sources(self):
-        # Same player appears in two projection sources for batting
-        bat = pd.DataFrame({
-            "ProjectionSource": ["steamer", "zips"],
-            "MlbamId": [1, 1],
-            "Salary": [25.0, 25.0],
-        })
-        pit = pd.DataFrame({
-            "ProjectionSource": ["steamer"],
-            "MlbamId": [3],
-            "Salary": [15.0],
+    def test_fa_players_not_counted_as_signed(self):
+        league_export = pd.DataFrame({
+            "Status": ["Signed", "FA", None],
+            "Salary": [25.0, 10.0, 5.0],
         })
         roster = {"teams": 10, "positions": {"C": 1, "P": 1, "bench": 1}}
         salary = {"cap": 260, "minimum": 1}
 
-        signed_bat = pd.Series([True, True], index=bat.index)
-        signed_pit = pd.Series([True], index=pit.index)
+        budget = calculate_available_budget(roster, salary, league_export)
 
-        budget = calculate_available_budget(bat, pit, roster, salary, signed_bat, signed_pit)
-
-        # Should only count MlbamId=1 once: salary = 25 + 15 = 40, count = 2
-        # remaining = 30 - 2 = 28
-        # available = 2600 - 40 - 28 = 2532
-        assert budget == pytest.approx(2532.0)
-
-    def test_deduplicates_two_way_players(self):
-        # Same player in both bat and pit projections
-        bat = pd.DataFrame({
-            "ProjectionSource": ["steamer"],
-            "MlbamId": [1],
-            "Salary": [50.0],
-        })
-        pit = pd.DataFrame({
-            "ProjectionSource": ["steamer"],
-            "MlbamId": [1],
-            "Salary": [50.0],
-        })
-        roster = {"teams": 10, "positions": {"C": 1, "P": 1, "bench": 1}}
-        salary = {"cap": 260, "minimum": 1}
-
-        signed_bat = pd.Series([True], index=bat.index)
-        signed_pit = pd.Series([True], index=pit.index)
-
-        budget = calculate_available_budget(bat, pit, roster, salary, signed_bat, signed_pit)
-
-        # Only one signed player (MlbamId=1), salary=50
+        # Only first player is signed: salary=25, count=1
         # remaining = 30 - 1 = 29
-        # available = 2600 - 50 - 29 = 2521
-        assert budget == pytest.approx(2521.0)
+        # available = 2600 - 25 - 29 = 2546
+        assert budget == pytest.approx(2546.0)
+
+    def test_minors_roster_spots_expand_total(self):
+        league_export = pd.DataFrame({
+            "Status": ["Signed", "FA", "Signed"],
+            "Salary": [25.0, 0.0, 15.0],
+        })
+        roster = {"teams": 10, "positions": {"C": 1, "P": 1, "bench": 1}, "minors": 5}
+        salary = {"cap": 260, "minimum": 1}
+
+        budget = calculate_available_budget(roster, salary, league_export)
+
+        # total_roster_spots = 10 * (3 + 5) = 80
+        # signed_salary = 25 + 15 = 40, signed_count = 2
+        # remaining_spots = 80 - 2 = 78
+        # available = 2600 - 40 - 78 * 1 = 2482
+        assert budget == pytest.approx(2482.0)
+
+    def test_includes_players_without_projections(self):
+        # Minor leaguers in export but with no projections should still be counted
+        league_export = pd.DataFrame({
+            "Status": ["Signed", "Signed", "Signed", "FA"],
+            "Salary": [25.0, 15.0, 8.0, 0.0],
+        })
+        roster = {"teams": 10, "positions": {"C": 1, "P": 1, "bench": 1}}
+        salary = {"cap": 260, "minimum": 1}
+
+        budget = calculate_available_budget(roster, salary, league_export)
+
+        # signed_salary = 25 + 15 + 8 = 48, signed_count = 3
+        # remaining = 30 - 3 = 27
+        # available = 2600 - 48 - 27 = 2525
+        assert budget == pytest.approx(2525.0)
 
     def test_no_signed_players(self):
-        bat = pd.DataFrame({
-            "ProjectionSource": ["steamer"],
-            "MlbamId": [1],
-            "Salary": [0.0],
-        })
-        pit = pd.DataFrame({
-            "ProjectionSource": ["steamer"],
-            "MlbamId": [2],
-            "Salary": [0.0],
+        league_export = pd.DataFrame({
+            "Status": ["FA", "FA"],
+            "Salary": [0.0, 0.0],
         })
         roster = {"teams": 10, "positions": {"C": 1, "P": 1, "bench": 1}}
         salary = {"cap": 260, "minimum": 1}
 
-        signed_bat = pd.Series([False], index=bat.index)
-        signed_pit = pd.Series([False], index=pit.index)
-
-        budget = calculate_available_budget(bat, pit, roster, salary, signed_bat, signed_pit)
+        budget = calculate_available_budget(roster, salary, league_export)
 
         # No signed players: same as full budget minus min salary reserve
         # available = 2600 - 0 - 30*1 = 2570

@@ -110,3 +110,35 @@ class TestLoadLeagueConfig:
         config = load_league_config(yaml)
         assert isinstance(config.scoring.bat["SO"], float)
         assert config.scoring.bat["SO"] == -1.0
+
+    def test_minors_roster_parsed(self):
+        yaml = {
+            "scoring": {"bat": {"HR": 4}, "pit": {"SO": 1}},
+            "roster": {"teams": 14, "positions": {"C": 1}, "minors": 15},
+        }
+        config = load_league_config(yaml)
+        assert config.roster.minors == 15
+
+    def test_minors_roster_defaults_to_zero(self):
+        yaml = {
+            "scoring": {"bat": {"HR": 4}, "pit": {"SO": 1}},
+            "roster": {"teams": 14, "positions": {"C": 1}},
+        }
+        config = load_league_config(yaml)
+        assert config.roster.minors == 0
+
+    def test_minors_pct_parsed(self):
+        yaml = {
+            "scoring": {"bat": {"HR": 4}, "pit": {"SO": 1}},
+            "salary": {"cap": 1280, "minimum": 11, "minors_pct": 0.20},
+        }
+        config = load_league_config(yaml)
+        assert config.salary.minors_pct == pytest.approx(0.20)
+
+    def test_minors_pct_defaults_to_zero(self):
+        yaml = {
+            "scoring": {"bat": {"HR": 4}, "pit": {"SO": 1}},
+            "salary": {"cap": 260},
+        }
+        config = load_league_config(yaml)
+        assert config.salary.minors_pct == 0.0

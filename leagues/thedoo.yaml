@@ -38,7 +38,9 @@ roster:
     UTIL: 1
     P: 9
     bench: 13
+  minors: 15
 
 salary:
-  cap: 1026
-  minimum: 11
+  cap: 1280
+  minimum: 12
+  minors_pct: 0.15
