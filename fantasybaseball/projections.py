@@ -9,7 +9,7 @@ from .formatting import format_currency_for_csv, format_stats, order_and_rank_ro
 from .points import calculate_points
 from .positions import replace_pitcher_position, replace_positions
 from .replacement import calculate_points_above_replacement
-from .valuation import calculate_auction_values
+from .valuation import calculate_auction_values, calculate_available_budget
 
 logger = logging.getLogger(__name__)
 
@@ -90,16 +90,31 @@ def augment_projections(
 
                 if "salary" in league_config:
                     roster, salary = league_config["roster"], league_config["salary"]
-                    bat_projections["AuctionValue"], pit_projections["AuctionValue"] = calculate_auction_values(
-                        bat_projections, pit_projections, roster, salary
-                    )
-                    bat_projections["ContractValue"] = bat_projections["AuctionValue"] - bat_projections["Salary"]
-                    pit_projections["ContractValue"] = pit_projections["AuctionValue"] - pit_projections["Salary"]
+                    pf = power_factor or 1.0
 
-                    if power_factor:
-                        bat_projections["CurvedValue"], pit_projections["CurvedValue"] = calculate_auction_values(
-                            bat_projections, pit_projections, roster, salary, power_factor
+                    # PlayerValue: theoretical full-market value
+                    bat_projections["PlayerValue"], pit_projections["PlayerValue"] = calculate_auction_values(
+                        bat_projections, pit_projections, roster, salary, pf
+                    )
+
+                    # AuctionValue: inflation-adjusted (only when league export provides Status)
+                    if "Status" in bat_projections.columns:
+                        signed_bat = bat_projections["Status"].notna() & (bat_projections["Status"] != "FA")
+                        signed_pit = pit_projections["Status"].notna() & (pit_projections["Status"] != "FA")
+
+                        available_budget = calculate_available_budget(
+                            bat_projections, pit_projections, roster, salary, signed_bat, signed_pit
                         )
+
+                        bat_projections["AuctionValue"], pit_projections["AuctionValue"] = calculate_auction_values(
+                            bat_projections, pit_projections, roster, salary, pf,
+                            total_auction_value=available_budget,
+                            bat_pool_mask=~signed_bat,
+                            pit_pool_mask=~signed_pit,
+                        )
+
+                    bat_projections["ContractValue"] = bat_projections["PlayerValue"] - bat_projections["Salary"]
+                    pit_projections["ContractValue"] = pit_projections["PlayerValue"] - pit_projections["Salary"]
 
             bat_projections = order_and_rank_rows(bat_projections, order_by="Points", asc=False)
             pit_projections = order_and_rank_rows(pit_projections, order_by="Points", asc=False)
