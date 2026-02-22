@@ -63,7 +63,19 @@ class TestCalculateReplacementLevelRanks:
         """Integration test with thedoo league roster."""
         roster = {
             "teams": 14,
-            "positions": {"C": 1, "1B": 1, "2B": 1, "SS": 1, "3B": 1, "CI": 1, "MI": 1, "OF": 5, "UTIL": 1, "P": 9, "bench": 13},
+            "positions": {
+                "C": 1,
+                "1B": 1,
+                "2B": 1,
+                "SS": 1,
+                "3B": 1,
+                "CI": 1,
+                "MI": 1,
+                "OF": 5,
+                "UTIL": 1,
+                "P": 9,
+                "bench": 13,
+            },
         }
         result = _calculate_replacement_level_ranks(roster, include_bench=True)
 

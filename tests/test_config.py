@@ -64,10 +64,12 @@ class TestLoadLeagueConfig:
 
     def test_roster_without_positions_raises(self):
         with pytest.raises(ValueError, match="positions"):
-            load_league_config({
-                "scoring": {"bat": {"HR": 4}, "pit": {"SO": 1}},
-                "roster": {"teams": 10},
-            })
+            load_league_config(
+                {
+                    "scoring": {"bat": {"HR": 4}, "pit": {"SO": 1}},
+                    "roster": {"teams": 10},
+                }
+            )
 
     def test_dict_access_works(self):
         """LeagueConfig supports dict-style access for backwards compat."""

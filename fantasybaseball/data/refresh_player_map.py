@@ -7,18 +7,22 @@ Usage:
 This script downloads the CSV version of the SFBB Player ID Map directly
 from their Google Sheets export URL and saves it to fantasybaseball/data/player_id_map.csv.
 """
+
 import sys
 import requests
 import pandas as pd
 
 # Direct CSV export URL from the Google Sheets document
 # Smart Fantasy Baseball Tools publishes this at https://www.smartfantasybaseball.com/tools/
-SFBB_PLAYER_MAP_CSV_URL = "https://docs.google.com/spreadsheets/d/1JgczhD5VDQ1EiXqVG-blttZcVwbZd5_Ne_mefUGwJnk/export?format=csv&gid=0"
+SFBB_PLAYER_MAP_CSV_URL = (
+    "https://docs.google.com/spreadsheets/d/1JgczhD5VDQ1EiXqVG-blttZcVwbZd5_Ne_mefUGwJnk/export?format=csv&gid=0"
+)
 
 OUTPUT_FILE = "fantasybaseball/data/player_id_map.csv"
 
 # Expected columns to validate the download
 EXPECTED_COLUMNS = ["MLBID", "IDFANGRAPHS", "FANTRAXID", "ESPNID", "YAHOOID", "PLAYERNAME"]
+
 
 def download_player_map():
     """Download and validate the player ID mapping."""
@@ -45,6 +49,7 @@ def download_player_map():
     print(f"  Players with MLBAM ID: {df['MLBID'].notna().sum():,}")
     print(f"  Players with Fangraphs ID: {df['IDFANGRAPHS'].notna().sum():,}")
     print(f"  Players with Fantrax ID: {df['FANTRAXID'].notna().sum():,}")
+
 
 if __name__ == "__main__":
     download_player_map()

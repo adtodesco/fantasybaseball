@@ -14,17 +14,20 @@ def load_player_id_map(path=None):
     player_map = pd.read_csv(path or default_player_id_map_path())
 
     # Standardize column names from SFBB format
-    player_map.rename(columns={
-        "MLBID": "MlbamId",
-        "IDFANGRAPHS": "FangraphsId",
-        "FANTRAXID": "FantraxId",
-        "ESPNID": "EspnId",
-        "YAHOOID": "YahooId"
-    }, inplace=True)
+    player_map.rename(
+        columns={
+            "MLBID": "MlbamId",
+            "IDFANGRAPHS": "FangraphsId",
+            "FANTRAXID": "FantraxId",
+            "ESPNID": "EspnId",
+            "YAHOOID": "YahooId",
+        },
+        inplace=True,
+    )
 
     # Convert to appropriate types
-    player_map["MlbamId"] = pd.to_numeric(player_map["MlbamId"], errors='coerce').astype('Int64')
-    player_map["FangraphsId"] = pd.to_numeric(player_map["FangraphsId"], errors='coerce').astype('Int64')
+    player_map["MlbamId"] = pd.to_numeric(player_map["MlbamId"], errors="coerce").astype("Int64")
+    player_map["FangraphsId"] = pd.to_numeric(player_map["FangraphsId"], errors="coerce").astype("Int64")
 
     return player_map
 
@@ -34,19 +37,14 @@ def merge_with_league_export(projections, league_export):
 
     # Ensure consistent types for FangraphsId
     league_export = league_export.copy()
-    league_export["FangraphsId"] = pd.to_numeric(league_export["FangraphsId"], errors='coerce').astype('Int64')
+    league_export["FangraphsId"] = pd.to_numeric(league_export["FangraphsId"], errors="coerce").astype("Int64")
 
     # Select league data columns, filtering out rows with null IDs to avoid cartesian products
     league_data = league_export[["Status", "Age", "Salary", "Contract", "MlbamId", "FangraphsId", "FantraxId"]].copy()
 
     # Primary join on MLBAM ID (only for non-null MlbamIds)
     league_data_mlbam = league_data[league_data["MlbamId"].notna()]
-    merged = projections.merge(
-        league_data_mlbam,
-        on="MlbamId",
-        how="left",
-        suffixes=("_proj", "_league")
-    )
+    merged = projections.merge(league_data_mlbam, on="MlbamId", how="left", suffixes=("_proj", "_league"))
 
     # For rows without MLBAM match, try Fangraphs ID
     unmatched_mask = merged["Status"].isna()
@@ -60,7 +58,7 @@ def merge_with_league_export(projections, league_export):
             league_data_fangraphs[["Status", "Age", "Salary", "Contract", "FangraphsId", "FantraxId"]],
             on="FangraphsId",
             how="inner",
-            suffixes=("", "_fg")
+            suffixes=("", "_fg"),
         )
 
         # Update merged dataframe with Fangraphs matches
@@ -84,6 +82,11 @@ def merge_with_league_export(projections, league_export):
         merged.rename(columns={"FangraphsId_league": "FangraphsId"}, inplace=True)
 
     # Clean up any remaining duplicate columns
-    merged.drop([col for col in merged.columns if col.endswith("_league") or col.endswith("_proj")], axis=1, inplace=True, errors="ignore")
+    merged.drop(
+        [col for col in merged.columns if col.endswith("_league") or col.endswith("_proj")],
+        axis=1,
+        inplace=True,
+        errors="ignore",
+    )
 
     return merged

@@ -6,7 +6,6 @@ import pandas as pd
 
 from .model import Position
 
-
 FLEX_POSITIONS = {
     Position.CI: [Position.FiB, Position.ThB],
     Position.MI: [Position.SeB, Position.SS],
@@ -82,8 +81,7 @@ def calculate_points_above_replacement(projections, league_roster, include_bench
 
     # Look up replacement points for each (source, position) pair
     expanded["_repl_pts"] = [
-        repl_lookup.get((src, pos), np.nan)
-        for src, pos in zip(expanded["ProjectionSource"], expanded["_positions"])
+        repl_lookup.get((src, pos), np.nan) for src, pos in zip(expanded["ProjectionSource"], expanded["_positions"])
     ]
 
     # For each original row, pick the position with the lowest replacement points

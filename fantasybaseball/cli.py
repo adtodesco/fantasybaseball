@@ -107,7 +107,12 @@ def main():
     projection_requests = create_projection_requests(stat_categories, projection_sources)
     bat_projections, pit_projections = run_projection_requests(projection_requests)
     bat_projections, pit_projections = augment_projections(
-        bat_projections, pit_projections, league, league_export, include_bench, args.rest_of_season,
+        bat_projections,
+        pit_projections,
+        league,
+        league_export,
+        include_bench,
+        args.rest_of_season,
         player_id_map_path=args.player_id_map,
         power_factor=args.power_factor,
     )

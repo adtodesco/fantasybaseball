@@ -18,27 +18,31 @@ def calculate_auction_values(
     pit_projection_sources = pit_projections["ProjectionSource"].unique()
     projection_sources = set(bat_projection_sources).union(set(pit_projection_sources))
     for projection_source in projection_sources:
-        bat_par = bat_projections.loc[
-            (bat_projections["ProjectionSource"] == projection_source)
-            & (bat_projections["PAR"] > 0.0)
-        ]["PAR"].pow(power_factor).sum()
+        bat_par = (
+            bat_projections.loc[
+                (bat_projections["ProjectionSource"] == projection_source) & (bat_projections["PAR"] > 0.0)
+            ]["PAR"]
+            .pow(power_factor)
+            .sum()
+        )
 
-        pit_par = pit_projections.loc[
-            (pit_projections["ProjectionSource"] == projection_source)
-            & (pit_projections["PAR"] > 0.0)
-        ]["PAR"].pow(power_factor).sum()
+        pit_par = (
+            pit_projections.loc[
+                (pit_projections["ProjectionSource"] == projection_source) & (pit_projections["PAR"] > 0.0)
+            ]["PAR"]
+            .pow(power_factor)
+            .sum()
+        )
         total_par[projection_source] = bat_par + pit_par
 
     par_value = {p: total_auction_value / t for p, t in total_par.items()}
 
     bat_values = (
-        bat_projections["ProjectionSource"].map(par_value)
-        * bat_projections["PAR"].clip(lower=0).pow(power_factor)
+        bat_projections["ProjectionSource"].map(par_value) * bat_projections["PAR"].clip(lower=0).pow(power_factor)
         + minimum_salary
     )
     pit_values = (
-        pit_projections["ProjectionSource"].map(par_value)
-        * pit_projections["PAR"].clip(lower=0).pow(power_factor)
+        pit_projections["ProjectionSource"].map(par_value) * pit_projections["PAR"].clip(lower=0).pow(power_factor)
         + minimum_salary
     )
 

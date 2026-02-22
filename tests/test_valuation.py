@@ -8,20 +8,24 @@ from fantasybaseball.valuation import calculate_auction_values
 class TestCalculateAuctionValues:
     @pytest.fixture
     def sample_data(self):
-        bat = pd.DataFrame({
-            "ProjectionSource": ["steamer", "steamer", "steamer"],
-            "MlbamId": [1, 2, 3],
-            "FangraphsId": [101, 102, 103],
-            "PAR": [50.0, 30.0, -10.0],
-            "Salary": [0.0, 0.0, 0.0],
-        })
-        pit = pd.DataFrame({
-            "ProjectionSource": ["steamer", "steamer"],
-            "MlbamId": [4, 5],
-            "FangraphsId": [104, 105],
-            "PAR": [40.0, 20.0],
-            "Salary": [0.0, 0.0],
-        })
+        bat = pd.DataFrame(
+            {
+                "ProjectionSource": ["steamer", "steamer", "steamer"],
+                "MlbamId": [1, 2, 3],
+                "FangraphsId": [101, 102, 103],
+                "PAR": [50.0, 30.0, -10.0],
+                "Salary": [0.0, 0.0, 0.0],
+            }
+        )
+        pit = pd.DataFrame(
+            {
+                "ProjectionSource": ["steamer", "steamer"],
+                "MlbamId": [4, 5],
+                "FangraphsId": [104, 105],
+                "PAR": [40.0, 20.0],
+                "Salary": [0.0, 0.0],
+            }
+        )
         roster = {"teams": 10, "positions": {"C": 1, "P": 1, "bench": 1}}
         salary = {"cap": 260, "minimum": 1}
         return bat, pit, roster, salary

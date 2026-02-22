@@ -15,8 +15,14 @@ logger = logging.getLogger(__name__)
 
 
 def augment_projections(
-    bat_projections, pit_projections, league_config=None, league_export=None, include_bench=True, ros=False,
-    player_id_map_path=None, power_factor=None,
+    bat_projections,
+    pit_projections,
+    league_config=None,
+    league_export=None,
+    include_bench=True,
+    ros=False,
+    player_id_map_path=None,
+    power_factor=None,
 ):
     bat_projections = add_mean_projection(
         bat_projections,
@@ -45,9 +51,9 @@ def augment_projections(
         # Add MLBAM IDs to league export via Fantrax ID
         league_export = league_export.merge(
             player_id_map[["MlbamId", "FangraphsId", "FantraxId"]],
-            left_on="ID",        # Fantrax ID from export (e.g., "*02yc4*")
+            left_on="ID",  # Fantrax ID from export (e.g., "*02yc4*")
             right_on="FantraxId",
-            how="left"
+            how="left",
         )
 
         # Join projections with league export on MLBAM ID (primary)
@@ -84,14 +90,16 @@ def augment_projections(
 
                 if "salary" in league_config:
                     roster, salary = league_config["roster"], league_config["salary"]
-                    bat_projections["AuctionValue"], pit_projections["AuctionValue"] = \
-                        calculate_auction_values(bat_projections, pit_projections, roster, salary)
+                    bat_projections["AuctionValue"], pit_projections["AuctionValue"] = calculate_auction_values(
+                        bat_projections, pit_projections, roster, salary
+                    )
                     bat_projections["ContractValue"] = bat_projections["AuctionValue"] - bat_projections["Salary"]
                     pit_projections["ContractValue"] = pit_projections["AuctionValue"] - pit_projections["Salary"]
 
                     if power_factor:
-                        bat_projections["CurvedValue"], pit_projections["CurvedValue"] = \
-                            calculate_auction_values(bat_projections, pit_projections, roster, salary, power_factor)
+                        bat_projections["CurvedValue"], pit_projections["CurvedValue"] = calculate_auction_values(
+                            bat_projections, pit_projections, roster, salary, power_factor
+                        )
 
             bat_projections = order_and_rank_rows(bat_projections, order_by="Points", asc=False)
             pit_projections = order_and_rank_rows(pit_projections, order_by="Points", asc=False)
